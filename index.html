@@ -80,7 +80,7 @@
         #music-note { position: absolute; bottom: 20px; right: 20px; color: white; opacity: 0.5; font-size: 12px; pointer-events: auto; cursor: pointer; }
 
         /* LEADERBOARD STYLES */
-        .lb-container { margin-top: 20px; max-height: 250px; overflow-y: auto; text-align: left; border: 2px solid #ddd; padding: 10px; font-size: 14px; min-width: 280px; }
+        .lb-container { margin-top: 20px; max-height: 200px; overflow-y: auto; text-align: left; border: 2px solid #ddd; padding: 10px; font-size: 14px; }
         .lb-row { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding: 5px 0; }
         .lb-name { font-weight: bold; }
         
@@ -91,7 +91,7 @@
 
     </style>
     
-    <!-- GOOGLE ANALYTICS (GA4) -->
+    <!-- GOOGLE ANALYTICS -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-R8CDWJX8K3"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -136,8 +136,8 @@
     <small style="display:block; margin-top:15px; color:#666;">(Ensure 'music.mp3' is in folder)</small>
 </div>
 
-<!-- HIGH SCORE OVERLAY (For viewing from Menu) -->
-<div id="highscore-overlay" class="overlay">
+<!-- HIGH SCORE OVERLAY (MAIN MENU) -->
+<div id="highscore-overlay" class="overlay" style="z-index: 150;">
     <h3>TOP PLAYERS</h3>
     <div id="hs-list" class="lb-container">Loading...</div>
     <button class="small-btn" style="margin-top:15px" onclick="document.getElementById('highscore-overlay').style.display='none'">CLOSE</button>
@@ -202,10 +202,9 @@
 
     // --- LEADERBOARD LOGIC EXPORTED TO WINDOW ---
     window.submitScore = async function() {
-        if(!db) { alert("Database connection failed."); return; }
+        if(!db) { alert("Database not connected. Check internet."); return; }
         
         const rawName = document.getElementById('player-name').value;
-        // Sanitize (Security)
         const name = rawName.replace(/[^a-zA-Z0-9 ]/g, '').toUpperCase().trim().substring(0, 10) || "ANON";
         const score = window.finalTotalScore || 0;
         
@@ -221,12 +220,12 @@
             });
             
             document.getElementById('submit-form').style.display = 'none';
-            window.Leaderboard.show(true); // Show in Game Over
+            window.Leaderboard.show(true); 
             
-            if(typeof gtag === 'function') gtag('event', 'score_submit', { score: score, level: window.currentLevel });
+            if(typeof gtag === 'function') gtag('event', 'score_submit', { score: score });
         } catch (e) {
             console.error("Error adding score: ", e);
-            alert("Could not save score. Check Firestore.");
+            alert("Could not save score. Check Firestore config.");
             btn.disabled = false;
             btn.innerText = "SUBMIT";
         }
@@ -234,7 +233,7 @@
 
     window.Leaderboard = {
         show: async function(inGameOver = false) {
-            if(!db) { alert("Leaderboard database not connected."); return; }
+            if(!db) { alert("Leaderboard unavailable."); return; }
 
             // Decide which container to use
             const containerId = inGameOver ? 'leaderboard-ui' : 'hs-list';
@@ -253,11 +252,11 @@
                 let html = "";
                 querySnapshot.forEach((doc) => {
                     const data = doc.data();
-                    // Sanitized display (Security)
-                    const safeName = data.name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                    // Sanitize HTML
+                    const safeName = data.name ? data.name.replace(/</g, "&lt;") : "ANON";
                     html += `<div class="lb-row"><span class="lb-name">${safeName}</span><span>${data.score}</span></div>`;
                 });
-                ui.innerHTML = html || "No scores yet. Be the first!";
+                ui.innerHTML = html || "No scores yet.";
             } catch(e) {
                 ui.innerHTML = "Error loading scores.";
                 console.error(e);
@@ -377,4 +376,372 @@
     let currentLevel = 1;
     let levelScore = 0;
     let totalScore = 0;
-    let powerUpEndTime
+    let powerUpEndTime = 0;
+    const upVector = new THREE.Vector3(0, 1, 0);
+    let obstacles = [], coins = [], powerPills = [], enemies = [];   
+
+    // --- THREEJS SETUP ---
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(CFG.colors.bg);
+    scene.fog = new THREE.Fog(CFG.colors.bg, 60, 100);
+
+    const worldLayer = new THREE.Group();
+    scene.add(worldLayer);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.body.appendChild(renderer.domElement);
+
+    const d = 26;
+    const aspect = window.innerWidth / window.innerHeight;
+    const camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 500);
+    scene.add(camera);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.set(2048, 2048);
+    dirLight.shadow.camera.left = -50; dirLight.shadow.camera.right = 50;
+    dirLight.shadow.camera.top = 50; dirLight.shadow.camera.bottom = -50;
+    scene.add(dirLight);
+
+    const mat = {
+        planet: new THREE.MeshToonMaterial({ color: CFG.colors.planet }),
+        player: new THREE.MeshToonMaterial({ color: CFG.colors.player }),
+        enemy: new THREE.MeshToonMaterial({ color: CFG.colors.enemyNormal }), 
+        coin: new THREE.MeshToonMaterial({ color: CFG.colors.coin, emissive: 0x333300 }),
+        powerPill: new THREE.MeshToonMaterial({ color: CFG.colors.powerPill, emissive: 0x004444 }),
+        tree: new THREE.MeshToonMaterial({ color: CFG.colors.tree }),
+        trunk: new THREE.MeshToonMaterial({ color: CFG.colors.trunk }),
+        rock: new THREE.MeshToonMaterial({ color: CFG.colors.rock, flatShading: true }),
+        outline: new THREE.MeshBasicMaterial({ color: CFG.colors.outline, side: THREE.BackSide })
+    };
+
+    function addOutline(mesh, geometry, scaleOverride = 1.0) {
+        const outlineMesh = new THREE.Mesh(geometry, mat.outline);
+        const s = 1 + CFG.outlineThickness * scaleOverride;
+        outlineMesh.scale.set(s, s, s);
+        mesh.add(outlineMesh);
+    }
+
+    const planetGeo = new THREE.IcosahedronGeometry(CFG.planetRadius, 5); 
+    const planet = new THREE.Mesh(planetGeo, mat.planet);
+    planet.receiveShadow = true;
+    addOutline(planet, planetGeo, 0.1);
+    scene.add(planet);
+
+    const playerWrapper = new THREE.Group(); 
+    playerWrapper.position.set(0, CFG.planetRadius, 0);
+    scene.add(playerWrapper);
+    dirLight.target = playerWrapper;
+
+    const playerGeo = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+    const playerMesh = new THREE.Mesh(playerGeo, mat.player); 
+    playerMesh.position.y = 0.75; 
+    playerMesh.castShadow = true;
+    playerMesh.receiveShadow = true;
+    addOutline(playerMesh, playerGeo);
+    playerWrapper.add(playerMesh);
+
+    let playerVerticalSpeed = 0;
+    let playerHeight = 0; 
+
+    // --- HELPERS ---
+    function getRandomPos(minDist) {
+        const phi = Math.acos(-1 + (2 * Math.random()));
+        const theta = Math.sqrt(Math.PI * 50 * phi) * phi;
+        const x = CFG.planetRadius * Math.cos(theta) * Math.sin(phi);
+        const y = CFG.planetRadius * Math.sin(theta) * Math.sin(phi);
+        const z = CFG.planetRadius * Math.cos(phi);
+        const pos = new THREE.Vector3(x, y, z);
+        if (pos.distanceTo(new THREE.Vector3(0, CFG.planetRadius, 0)) < minDist) return null;
+        for(const obs of obstacles) {
+            if (pos.distanceTo(obs.pos) < obs.radius + 1) return null;
+        }
+        return pos;
+    }
+
+    function spawnScenery(type) {
+        const pos = getRandomPos(5);
+        if (!pos) return false;
+        const group = new THREE.Group();
+        group.position.copy(pos);
+        group.quaternion.setFromUnitVectors(upVector, pos.clone().normalize());
+        if(type === 'tree') {
+            const trunkGeo = new THREE.CylinderGeometry(0.3, 0.5, 2, 6); trunkGeo.translate(0, 1, 0);
+            const trunk = new THREE.Mesh(trunkGeo, mat.trunk); trunk.castShadow=true; trunk.receiveShadow=true; addOutline(trunk, trunkGeo); group.add(trunk);
+            const leavesGeo = new THREE.ConeGeometry(1.5, 3, 5); leavesGeo.translate(0, 3, 0);
+            const leaves = new THREE.Mesh(leavesGeo, mat.tree); leaves.castShadow=true; addOutline(leaves, leavesGeo); group.add(leaves);
+            obstacles.push({ pos: pos, radius: 0.6, height: 10 }); 
+        } else {
+            const rockGeo = new THREE.DodecahedronGeometry(0.9, 0);
+            const rock = new THREE.Mesh(rockGeo, mat.rock); rock.position.y=0.6; rock.castShadow=true; rock.receiveShadow=true;
+            rock.rotation.set(Math.random(), Math.random(), Math.random()); addOutline(rock, rockGeo); group.add(rock);
+            obstacles.push({ pos: pos, radius: 1.3, height: 1.5 });
+        }
+        worldLayer.add(group);
+        return true;
+    }
+
+    function spawnCoin() {
+        const pos = getRandomPos(8); 
+        if(!pos) return false; 
+        const group = new THREE.Group(); group.position.copy(pos); group.quaternion.setFromUnitVectors(upVector, pos.clone().normalize());
+        const coinGeo = new THREE.TorusGeometry(0.6, 0.2, 8, 16);
+        const coin = new THREE.Mesh(coinGeo, mat.coin); coin.position.y = 1.5; coin.castShadow = true; addOutline(coin, coinGeo);
+        group.add(coin); worldLayer.add(group);
+        coins.push({ mesh: coin, group: group, active: true });
+        return true; 
+    }
+
+    function spawnPowerPill() {
+        const pos = getRandomPos(10);
+        if(!pos) return false;
+        const group = new THREE.Group(); group.position.copy(pos); group.quaternion.setFromUnitVectors(upVector, pos.clone().normalize());
+        const geo = new THREE.DodecahedronGeometry(0.8);
+        const mesh = new THREE.Mesh(geo, mat.powerPill); mesh.position.y = 1.5; mesh.castShadow = true; addOutline(mesh, geo);
+        group.add(mesh); worldLayer.add(group);
+        powerPills.push({ mesh: mesh, group: group, active: true });
+        return true;
+    }
+
+    function spawnEnemy() {
+        const pos = getRandomPos(20);
+        if(!pos) return false;
+        const group = new THREE.Group(); group.position.copy(pos); group.quaternion.setFromUnitVectors(upVector, pos.clone().normalize());
+        const bodyGeo = new THREE.SphereGeometry(0.9, 16, 16); bodyGeo.scale(1, 0.7, 1); 
+        const body = new THREE.Mesh(bodyGeo, mat.enemy); body.position.y = 0.6; body.castShadow = true; body.receiveShadow = true; addOutline(body, bodyGeo);
+        group.add(body); worldLayer.add(group);
+        enemies.push({ group: group, active: true, spawnPos: pos.clone() });
+        return true;
+    }
+
+    // --- LOGIC ---
+    function updateHUD() {
+        document.getElementById('score-level').innerText = levelScore;
+        document.getElementById('score-total').innerText = totalScore;
+        document.getElementById('level-num').innerText = currentLevel;
+    }
+
+    function buildLevel(lvl) {
+        obstacles = []; coins = []; powerPills = []; enemies = [];
+        while(worldLayer.children.length > 0){ worldLayer.remove(worldLayer.children[0]); }
+        for(let i=0; i<30; i++) spawnScenery('tree');
+        for(let i=0; i<10; i++) spawnScenery('rock');
+        while(coins.length < CFG.totalCoins) spawnCoin();
+        while(powerPills.length < 3) spawnPowerPill();
+        const enemyCount = 4 + (lvl * 2); 
+        while(enemies.length < enemyCount) spawnEnemy();
+        levelScore = 0; powerUpEndTime = 0; updateHUD();
+        playerWrapper.position.set(0, CFG.planetRadius, 0);
+        playerWrapper.quaternion.set(0,0,0,1);
+        playerHeight = 0; playerVerticalSpeed = 0;
+        window.currentLevel = lvl; 
+        trackEvent('level_start', { level: lvl });
+    }
+
+    function startCountdown(nextLvl) {
+        gameState = "COUNTDOWN";
+        AudioCtx.levelUp();
+        const screen = document.getElementById('transition-screen');
+        const title = document.getElementById('trans-title');
+        const msg = document.getElementById('trans-msg');
+        const countUi = document.getElementById('countdown');
+        screen.style.display = 'flex';
+        if(nextLvl === 1) {
+            title.innerText = "GET READY";
+            msg.innerHTML = "1. Collect 20 Gold Coins.<br>2. Avoid the Red Slimes.<br>3. Eat Blue Pills to chase them back!";
+        } else {
+            title.innerText = "LEVEL COMPLETE";
+            msg.innerHTML = "Nice work! Prepare for Level " + nextLvl;
+            trackEvent('level_complete', { level: currentLevel, score: totalScore });
+        }
+        let count = 3; countUi.innerText = count;
+        const interval = setInterval(() => {
+            count--;
+            if(count > 0) { countUi.innerText = count; } else {
+                clearInterval(interval); screen.style.display = 'none';
+                currentLevel = nextLvl; buildLevel(currentLevel); gameState = "PLAYING";
+            }
+        }, 1000);
+    }
+
+    function gameOver() {
+        gameState = "LOST";
+        window.finalTotalScore = totalScore; 
+        document.getElementById('game-over').style.display = 'block';
+        document.getElementById('go-title').innerText = "GAME OVER";
+        document.getElementById('go-msg').innerText = "You reached Level " + currentLevel + "\nTotal Score: " + totalScore;
+        
+        document.getElementById('submit-form').style.display = 'block';
+        document.getElementById('leaderboard-display').style.display = 'none';
+        const btn = document.querySelector('#submit-form button');
+        btn.disabled = false; btn.innerText = "SUBMIT";
+        
+        AudioCtx.die();
+        trackEvent('game_over', { level: currentLevel, score: totalScore });
+    }
+
+    // --- MAIN INPUT ---
+    const keys = {};
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') {
+            if (gameState === "WAITING") {
+                AudioCtx.init();
+                BGM.play().catch(e=>console.log("Autoplay prevented"));
+                document.getElementById('start-screen').style.display = 'none';
+                totalScore = 0; startCountdown(1);
+            } else if (gameState === "LOST") {
+                document.getElementById('game-over').style.display = 'none';
+                totalScore = 0; startCountdown(1);
+            }
+            keys[e.code] = true;
+        } else { keys[e.code] = true; }
+    });
+    window.addEventListener('keyup', (e) => keys[e.code] = false);
+
+
+    // --- LOOP ---
+    const smoothedForward = new THREE.Vector3(0, 0, 1);
+    const tempQuat = new THREE.Quaternion();
+
+    function animate() {
+        requestAnimationFrame(animate);
+        if(gameState !== "PLAYING") return;
+
+        const now = Date.now();
+        const isPowered = now < powerUpEndTime;
+        
+        if (isPowered) {
+            const timeLeft = powerUpEndTime - now;
+            const pct = (timeLeft / CFG.powerDuration) * 100;
+            document.getElementById('power-ui').style.display = 'block';
+            document.getElementById('power-bar-fill').style.width = pct + "%";
+            document.getElementById('power-bar-fill').style.backgroundColor = (timeLeft < 1500) ? "#FF0000" : "#00FFFF";
+            mat.enemy.color.setHex(CFG.colors.enemyVuln);
+        } else {
+            document.getElementById('power-ui').style.display = 'none';
+            mat.enemy.color.setHex(CFG.colors.enemyNormal);
+        }
+
+        if (keys['Space'] && playerHeight <= 0.05) { playerVerticalSpeed = CFG.jumpForce; AudioCtx.jump(); }
+        playerHeight += playerVerticalSpeed; playerVerticalSpeed -= CFG.gravity;
+        if (playerHeight < 0) { playerHeight = 0; playerVerticalSpeed = 0; }
+        playerMesh.position.y = 0.75 + playerHeight;
+
+        let turn = 0;
+        if (keys['KeyA'] || keys['ArrowLeft']) turn = 1;
+        if (keys['KeyD'] || keys['ArrowRight']) turn = -1;
+        if (turn !== 0) playerWrapper.rotateY(turn * CFG.turnSpeed);
+
+        let move = 0;
+        if (keys['KeyW'] || keys['ArrowUp']) move = 1;
+        if (keys['KeyS'] || keys['ArrowDown']) move = -1;
+
+        if (move !== 0) {
+            playerWrapper.translateZ(-move * CFG.moveSpeed);
+            const newPos = playerWrapper.position.clone().normalize().multiplyScalar(CFG.planetRadius);
+            let hit = false;
+            for(const obs of obstacles) {
+                if (newPos.distanceTo(obs.pos) < obs.radius) {
+                    if (playerHeight < obs.height) { hit = true; break; }
+                }
+            }
+            if (!hit) {
+                playerWrapper.position.copy(newPos);
+                playerMesh.rotation.z = Math.sin(Date.now() * 0.02) * 0.1;
+            } else { playerWrapper.translateZ(move * CFG.moveSpeed); }
+        } else { playerMesh.rotation.z *= 0.8; }
+
+        const planetNormal = playerWrapper.position.clone().normalize(); 
+        const currentUp = new THREE.Vector3(0, 1, 0).applyQuaternion(playerWrapper.quaternion);
+        tempQuat.setFromUnitVectors(currentUp, planetNormal);
+        playerWrapper.quaternion.premultiply(tempQuat);
+
+        for(const c of coins) {
+            if(!c.active) continue;
+            c.mesh.rotation.y += 0.05; c.mesh.position.y = 1.5 + Math.sin(Date.now() * 0.005) * 0.2;
+            if (playerWrapper.position.distanceTo(c.group.position) < 2.0) {
+                c.active = false; c.group.visible = false;
+                levelScore++; totalScore += 10; updateHUD(); AudioCtx.coin();
+                if(levelScore >= CFG.totalCoins) startCountdown(currentLevel + 1);
+            }
+        }
+        for(const p of powerPills) {
+            if(!p.active) continue;
+            p.mesh.scale.setScalar(1 + Math.sin(Date.now()*0.01)*0.2); 
+            if (playerWrapper.position.distanceTo(p.group.position) < 2.0) {
+                p.active = false; p.group.visible = false;
+                powerUpEndTime = Date.now() + CFG.powerDuration;
+                AudioCtx.powerUp(); trackEvent('power_up');
+            }
+        }
+
+        for(const enemy of enemies) {
+            if(!enemy.active) continue;
+            const enemyPos = enemy.group.position.clone();
+            const toPlayer = playerWrapper.position.clone().sub(enemyPos);
+            const dist = toPlayer.length();
+            
+            let moveDir = isPowered ? toPlayer.negate() : toPlayer;
+            moveDir.normalize();
+
+            const separation = new THREE.Vector3();
+            let count = 0;
+            for(const other of enemies) {
+                if(other === enemy || !other.active) continue;
+                const diff = enemyPos.clone().sub(other.group.position);
+                const len = diff.length();
+                if(len < 4.0 && len > 0) { separation.add(diff.normalize().divideScalar(len * 0.5)); count++; }
+            }
+            if(count > 0) { moveDir.add(separation.multiplyScalar(2.5)); moveDir.normalize(); }
+
+            const enemyNormal = enemyPos.clone().normalize();
+            const projectedDir = moveDir.sub(enemyNormal.multiplyScalar(moveDir.dot(enemyNormal))).normalize();
+            const spd = isPowered ? CFG.baseEnemySpeed * 0.6 : CFG.baseEnemySpeed;
+            const nextPos = enemyPos.add(projectedDir.multiplyScalar(spd));
+            nextPos.normalize().multiplyScalar(CFG.planetRadius);
+            
+            enemy.group.position.copy(nextPos);
+            const enemyQ = new THREE.Quaternion().setFromUnitVectors(upVector, nextPos.clone().normalize());
+            enemy.group.quaternion.copy(enemyQ);
+
+            if (dist < 1.5) {
+                if(isPowered) {
+                    enemy.active = false; enemy.group.visible = false;
+                    totalScore += 50; updateHUD(); AudioCtx.eatGhost();
+                    setTimeout(() => { if(gameState !== "PLAYING") return; enemy.active = true; enemy.group.visible = true; enemy.group.position.copy(enemy.spawnPos); }, 4000);
+                } else { gameOver(); }
+            }
+        }
+
+        const playerForward = new THREE.Vector3(0, 0, 1).applyQuaternion(playerWrapper.quaternion);
+        smoothedForward.lerp(playerForward, CFG.camLag);
+        const dot = smoothedForward.dot(planetNormal);
+        smoothedForward.sub(planetNormal.clone().multiplyScalar(dot)).normalize();
+        if (isNaN(smoothedForward.x)) smoothedForward.copy(playerForward);
+        const cameraOffset = planetNormal.clone().multiplyScalar(CFG.camHeight).add(smoothedForward.clone().multiplyScalar(CFG.camDistance));
+        camera.position.copy(playerWrapper.position.clone().add(cameraOffset));
+        camera.up.copy(planetNormal);
+        camera.lookAt(playerWrapper.position);
+
+        const sunOffset = new THREE.Vector3(50, 100, 50).applyQuaternion(playerWrapper.quaternion);
+        dirLight.position.copy(playerWrapper.position).add(sunOffset);
+
+        renderer.render(scene, camera);
+    }
+
+    window.addEventListener('resize', () => {
+        const aspect = window.innerWidth / window.innerHeight;
+        camera.left = -d * aspect; camera.right = d * aspect; camera.top = d; camera.bottom = -d;
+        camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    animate();
+</script>
+</body>
+</html>
