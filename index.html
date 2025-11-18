@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Waddle Box on Tiny Planet</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #1a1a2e; font-family: 'Courier New', monospace; user-select: none; }
+        
+        /* HUD */
+        #ui-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #top-bar {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 3px 3px 0 #000;
+        }
+
+        .hud-item { background: rgba(0,0,0,0.4); padding: 8px 15px; border-radius: 8px; border: 2px solid #000; }
+
+        /* POWER UP UI */
+        #power-ui {
+            align-self: center;
+            text-align: center;
+            display: none;
+            margin-bottom: 40px;
+        }
+
+        #power-text {
+            color: #00FFFF; 
+            font-size: 32px; 
+            font-weight: bold; 
+            text-shadow: 0 0 10px #00FFFF; 
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            animation: pulse 0.2s infinite alternate;
+        }
+
+        #power-bar-bg {
+            width: 300px;
+            height: 20px;
+            background: rgba(0,0,0,0.5);
+            border: 3px solid white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 4px 4px 0px black;
+        }
+
+        #power-bar-fill {
+            width: 100%;
+            height: 100%;
+            background: #00FFFF;
+            transform-origin: left;
+        }
+
+        @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.1); } }
+
+        /* OVERLAYS */
+        .overlay {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border: 4px solid black;
+            box-shadow: 10px 10px 0px black;
+            padding: 40px;
+            text-align: center;
+            pointer-events: auto;
+            min-width: 320px;
+            display: none;
+        }
+
+        /* TRANSITION SCREEN */
+        #transition-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            pointer-events: none;
+            display: none;
+            backdrop-filter: blur(4px);
+        }
+        
+        #trans-title { font-size: 50px; color: #FFD700; text-shadow: 4px 4px 0 #000; margin-bottom: 20px; font-weight: bold;}
+        #trans-msg { font-size: 22px; max-width: 600px; text-align: center; margin-bottom: 30px; line-height: 1.6; background: #000; padding: 20px; border: 2px solid white; border-radius: 10px;}
+        #countdown { font-size: 100px; font-weight: bold; text-shadow: 5px 5px 0 #000; color: #FFD700; }
+
+        .blink { animation: blinker 1s linear infinite; color: #d32f2f; font-weight: bold; margin-top: 20px; font-size: 18px; }
+        @keyframes blinker { 50% { opacity: 0; } }
+
+        h1 { margin: 0 0 10px 0; text-transform: uppercase; font-size: 32px; }
+        .win { color: #4CAF50; }
+        .lose { color: #F44336; }
+        
+        #music-note { position: absolute; bottom: 20px; right: 20px; color: white; opacity: 0.5; font-size: 12px; pointer-events: auto; cursor: pointer; }
+
+    </style>
+</head>
+<body>
+
+<!-- HUD -->
+<div id="ui-layer">
+    <div id="top-bar">
+        <div class="hud-item">TOTAL SCORE: <span id="score-total">0</span></div>
+        <div class="hud-item">LEVEL: <span id="level-num">1</span></div>
+        <div class="hud-item" style="color:#FFD700">COINS: <span id="score-level">0</span> / 20</div>
+    </div>
+
+    <div id="power-ui">
+        <div id="power-text">POWER UP!</div>
+        <div id="power-bar-bg">
+            <div id="power-bar-fill"></div>
+        </div>
+    </div>
+    
+    <div id="music-note" onclick="toggleMute()">Music: ON</div>
+</div>
+
+<!-- TRANSITION -->
+<div id="transition-screen">
+    <div id="trans-title">GET READY</div>
+    <div id="trans-msg">
+        1. Collect 20 Gold Coins.<br>
+        2. Avoid the Red Slimes.<br>
+        3. Eat Blue Pills to chase them back!
+    </div>
+    <div id="countdown">3</div>
+</div>
+
+<!-- START SCREEN -->
+<div id="start-screen" class="overlay" style="display:block;">
+    <h1>Waddle Box<br><small style="font-size:20px">on Tiny Planet</small></h1>
+    <p>Arcade Edition</p>
+    <div class="blink">PRESS SPACE TO START</div>
+    <small style="display:block; margin-top:15px; color:#666;">(Ensure 'music.mp3' is in folder)</small>
+</div>
+
+<!-- GAME OVER -->
+<div id="game-over" class="overlay">
+    <h1 id="go-title">Game Over</h1>
+    <p id="go-msg">Result</p>
+    <div class="blink">PRESS SPACE TO RESTART</div>
+</div>
+
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+</script>
+
+<script>
+    // --- BACKGROUND MUSIC CONTROLLER ---
+    const BGM = new Audio('music.mp3');
+    BGM.loop = true;
+    BGM.volume = 0.4; 
+    
+    let isMuted = false;
+    function toggleMute() {
+        isMuted = !isMuted;
+        BGM.muted = isMuted;
+        document.getElementById('music-note').innerText = "Music: " + (isMuted ? "OFF" : "ON");
+    }
+</script>
+
+<script type="module">
+    import * as THREE from 'three';
+
+    // --- SFX SYNTHESIZER ---
+    const AudioCtx = {
+        ctx: null,
+        init: function() {
+            if (this.ctx) return;
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioContext();
+        },
+        playTone: function(freq, type, duration, vol=0.1) {
+            if(!this.ctx) return;
+            if(this.ctx.state === 'suspended') this.ctx.resume();
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+            gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + duration);
+        },
+        jump: function() { this.playTone(150, 'triangle', 0.1, 0.1); },
+        coin: function() { this.playTone(1200, 'sine', 0.1, 0.05); },
+        powerUp: function() {
+            if(!this.ctx) return;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(200, this.ctx.currentTime);
+            osc.frequency.linearRampToValueAtTime(600, this.ctx.currentTime + 0.4);
+            gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.4);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + 0.4);
+        },
+        levelUp: function() {
+            if(!this.ctx) return;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+            osc.frequency.setValueAtTime(600, this.ctx.currentTime + 0.1);
+            osc.frequency.setValueAtTime(800, this.ctx.currentTime + 0.2);
+            gain.gain.value = 0.1;
+            gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.6);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + 0.6);
+        },
+        eatGhost: function() {
+            this.playTone(100, 'sawtooth', 0.1, 0.1); 
+            setTimeout(() => this.playTone(150, 'sawtooth', 0.1, 0.1), 50);
+        },
+        die: function() {
+            if(!this.ctx) return;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(200, this.ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(10, this.ctx.currentTime + 0.5);
+            gain.gain.value = 0.2;
+            gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.5);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + 0.5);
+        }
+    };
+
+    // --- CONFIGURATION ---
+    const CFG = {
+        colors: {
+            bg: 0x1a1a2e,
+            planet: 0x7Ec850,
+            player: 0xFFD700,
+            enemyNormal: 0xFF4444,
+            enemyVuln: 0x4444FF,
+            coin: 0xFFD700,
+            powerPill: 0x00FFFF,
+            tree: 0x2E7D32,
+            trunk: 0x5D4037,
+            rock: 0x757575,
+            outline: 0x000000
+        },
+        planetRadius: 30,
+        moveSpeed: 0.28,
+        turnSpeed: 0.06,
+        jumpForce: 0.65,
+        gravity: 0.035,
+        baseEnemySpeed: 0.13, 
+        totalCoins: 20,
+        powerDuration: 6000,
+        outlineThickness: 0.025,
+        camHeight: 25,
+        camDistance: 35,
+        camLag: 0.08
+    };
+
+    // --- GLOBAL STATE ---
+    let gameState = "WAITING"; 
+    let currentLevel = 1;
+    let levelScore = 0;
+    let totalScore = 0;
+    let powerUpEndTime = 0;
+    const upVector = new THREE.Vector3(0, 1, 0);
+    
+    // Arrays
+    let obstacles = []; 
+    let coins = [];     
+    let powerPills = [];
+    let enemies = [];   
+
+    // --- SETUP ---
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(CFG.colors.bg);
+    scene.fog = new THREE.Fog(CFG.colors.bg, 60, 100);
+
+    const worldLayer = new THREE.Group();
+    scene.add(worldLayer);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.body.appendChild(renderer.domElement);
+
+    const d = 26;
+    const aspect = window.innerWidth / window.innerHeight;
+    const camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 500);
+    scene.add(camera);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.set(2048, 2048);
+    dirLight.shadow.camera.left = -50;
+    dirLight.shadow.camera.right = 50;
+    dirLight.shadow.camera.top = 50;
+    dirLight.shadow.camera.bottom = -50;
+    scene.add(dirLight);
+
+    // --- MATERIALS ---
+    const mat = {
+        planet: new THREE.MeshToonMaterial({ color: CFG.colors.planet }),
+        player: new THREE.MeshToonMaterial({ color: CFG.colors.player }),
+        enemy: new THREE.MeshToonMaterial({ color: CFG.colors.enemyNormal }), 
+        coin: new THREE.MeshToonMaterial({ color: CFG.colors.coin, emissive: 0x333300 }),
+        powerPill: new THREE.MeshToonMaterial({ color: CFG.colors.powerPill, emissive: 0x004444 }),
+        tree: new THREE.MeshToonMaterial({ color: CFG.colors.tree }),
+        trunk: new THREE.MeshToonMaterial({ color: CFG.colors.trunk }),
+        rock: new THREE.MeshToonMaterial({ color: CFG.colors.rock, flatShading: true }),
+        outline: new THREE.MeshBasicMaterial({ color: CFG.colors.outline, side: THREE.BackSide })
+    };
+
+    function addOutline(mesh, geometry, scaleOverride = 1.0) {
+        const outlineMesh = new THREE.Mesh(geometry, mat.outline);
+        const s = 1 + CFG.outlineThickness * scaleOverride;
+        outlineMesh.scale.set(s, s, s);
+        mesh.add(outlineMesh);
+    }
+
+    // --- PERMANENT OBJECTS ---
+    const planetGeo = new THREE.IcosahedronGeometry(CFG.planetRadius, 5); 
+    const planet = new THREE.Mesh(planetGeo, mat.planet);
+    planet.receiveShadow = true;
+    addOutline(planet, planetGeo, 0.1);
+    scene.add(planet);
+
+    const playerWrapper = new THREE.Group(); 
+    playerWrapper.position.set(0, CFG.planetRadius, 0);
+    scene.add(playerWrapper);
+    dirLight.target = playerWrapper;
+
+    const playerGeo = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+    const playerMesh = new THREE.Mesh(playerGeo, mat.player); 
+    playerMesh.position.y = 0.75; 
+    playerMesh.castShadow = true;
+    playerMesh.receiveShadow = true;
+    addOutline(playerMesh, playerGeo);
+    playerWrapper.add(playerMesh);
+
+    let playerVerticalSpeed = 0;
+    let playerHeight = 0; 
+
+    // --- GENERATION ---
+    function getRandomPos(minDistFromTop) {
+        const phi = Math.acos(-1 + (2 * Math.random()));
+        const theta = Math.sqrt(Math.PI * 50 * phi) * phi;
+        const x = CFG.planetRadius * Math.cos(theta) * Math.sin(phi);
+        const y = CFG.planetRadius * Math.sin(theta) * Math.sin(phi);
+        const z = CFG.planetRadius * Math.cos(phi);
+        const pos = new THREE.Vector3(x, y, z);
+        if (pos.distanceTo(new THREE.Vector3(0, CFG.planetRadius, 0)) < minDistFromTop) return null;
+        for(const obs of obstacles) {
+            if (pos.distanceTo(obs.pos) < obs.radius + 1) return null;
+        }
+        return pos;
+    }
+
+    function spawnScenery(type) {
+        const pos = getRandomPos(5);
+        if (!pos) return false;
+        const group = new THREE.Group();
+        group.position.copy(pos);
+        group.quaternion.setFromUnitVectors(upVector, pos.clone().normalize());
+
+        if(type === 'tree') {
+            const trunkGeo = new THREE.CylinderGeometry(0.3, 0.5, 2, 6);
+            trunkGeo.translate(0, 1, 0);
+            const trunk = new THREE.Mesh(trunkGeo, mat.trunk);
+            trunk.castShadow = true;
+            trunk.receiveShadow = true;
+            addOutline(trunk, trunkGeo);
+            group.add(trunk);
+
+            const leavesGeo = new THREE.ConeGeometry(1.5, 3, 5);
+            leavesGeo.translate(0, 3, 0);
+            const leaves = new THREE.Mesh(leavesGeo, mat.tree);
+            leaves.castShadow = true;
+            addOutline(leaves, leavesGeo);
+            group.add(leaves);
+            obstacles.push({ pos: pos, radius: 0.6, height: 10 }); 
+        } else {
+            const rockGeo = new THREE.DodecahedronGeometry(0.9, 0);
+            const rock = new THREE.Mesh(rockGeo, mat.rock);
+            rock.position.y = 0.6;
+            rock.castShadow = true;
+            rock.receiveShadow = true;
+            rock.rotation.set(Math.random(), Math.random(), Math.random());
+            addOutline(rock, rockGeo);
+            group.add(rock);
+            obstacles.push({ pos: pos, radius: 1.3, height: 1.5 });
+        }
+        worldLayer.add(group);
+        return true;
+    }
+
+    function spawnCoin() {
+        const pos = getRandomPos(8); 
+        if(!pos) return false; 
+        const group = new THREE.Group();
+        group.position.copy(pos);
+        group.quaternion.setFromUnitVectors(upVector, pos.clone().normalize());
+        const coinGeo = new THREE.TorusGeometry(0.6, 0.2, 8, 16);
+        const coin = new THREE.Mesh(coinGeo, mat.coin);
+        coin.position.y = 1.5; 
+        coin.castShadow = true;
+        addOutline(coin, coinGeo);
+        group.add(coin);
+        worldLayer.add(group);
+        coins.push({ mesh: coin, group: group, active: true });
+        return true; 
+    }
+
+    function spawnPowerPill() {
+        const pos = getRandomPos(10);
+        if(!pos) return false;
+        const group = new THREE.Group();
+        group.position.copy(pos);
+        group.quaternion.setFromUnitVectors(upVector, pos.clone().normalize());
+        const geo = new THREE.DodecahedronGeometry(0.8);
+        const mesh = new THREE.Mesh(geo, mat.powerPill);
+        mesh.position.y = 1.5;
+        mesh.castShadow = true;
+        addOutline(mesh, geo);
+        group.add(mesh);
+        worldLayer.add(group);
+        powerPills.push({ mesh: mesh, group: group, active: true });
+        return true;
+    }
+
+    function spawnEnemy() {
+        const pos = getRandomPos(20);
+        if(!pos) return false;
+        const group = new THREE.Group();
+        group.position.copy(pos);
+        group.quaternion.setFromUnitVectors(upVector, pos.clone().normalize());
+        const bodyGeo = new THREE.SphereGeometry(0.9, 16, 16);
+        bodyGeo.scale(1, 0.7, 1); 
+        const body = new THREE.Mesh(bodyGeo, mat.enemy); 
+        body.position.y = 0.6;
+        body.castShadow = true;
+        body.receiveShadow = true;
+        addOutline(body, bodyGeo);
+        group.add(body);
+        worldLayer.add(group);
+        enemies.push({ group: group, active: true, spawnPos: pos.clone() });
+        return true;
+    }
+
+    // --- LEVEL LOGIC ---
+    function updateHUD() {
+        document.getElementById('score-level').innerText = levelScore;
+        document.getElementById('score-total').innerText = totalScore;
+        document.getElementById('level-num').innerText = currentLevel;
+    }
+
+    function buildLevel(lvl) {
+        obstacles = [];
+        coins = [];
+        powerPills = [];
+        enemies = [];
+        while(worldLayer.children.length > 0){ worldLayer.remove(worldLayer.children[0]); }
+
+        for(let i=0; i<30; i++) spawnScenery('tree');
+        for(let i=0; i<10; i++) spawnScenery('rock');
+        
+        while(coins.length < CFG.totalCoins) spawnCoin();
+        while(powerPills.length < 3) spawnPowerPill();
+        
+        const enemyCount = 4 + (lvl * 2); 
+        while(enemies.length < enemyCount) spawnEnemy();
+
+        levelScore = 0;
+        powerUpEndTime = 0;
+        updateHUD();
+        
+        playerWrapper.position.set(0, CFG.planetRadius, 0);
+        playerWrapper.quaternion.set(0,0,0,1);
+        playerHeight = 0;
+        playerVerticalSpeed = 0;
+    }
+
+    function startCountdown(nextLvl) {
+        gameState = "COUNTDOWN";
+        AudioCtx.levelUp();
+        
+        const screen = document.getElementById('transition-screen');
+        const title = document.getElementById('trans-title');
+        const msg = document.getElementById('trans-msg');
+        const countUi = document.getElementById('countdown');
+        
+        screen.style.display = 'flex';
+        
+        if(nextLvl === 1) {
+            title.innerText = "GET READY";
+            msg.innerHTML = "1. Collect 20 Gold Coins.<br>2. Avoid the Red Slimes.<br>3. Eat Blue Pills to chase them back!";
+        } else {
+            title.innerText = "LEVEL COMPLETE";
+            msg.innerHTML = "Nice work! Prepare for Level " + nextLvl;
+        }
+
+        let count = 3;
+        countUi.innerText = count;
+        
+        const interval = setInterval(() => {
+            count--;
+            if(count > 0) {
+                countUi.innerText = count;
+            } else {
+                clearInterval(interval);
+                screen.style.display = 'none';
+                currentLevel = nextLvl;
+                buildLevel(currentLevel);
+                gameState = "PLAYING";
+            }
+        }, 1000);
+    }
+
+    function gameOver() {
+        gameState = "LOST";
+        document.getElementById('game-over').style.display = 'block';
+        document.getElementById('go-title').innerText = "GAME OVER";
+        document.getElementById('go-msg').innerText = "You reached Level " + currentLevel + "\nTotal Score: " + totalScore;
+        AudioCtx.die();
+    }
+
+    // --- CONTROLS ---
+    const keys = {};
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') {
+            if (gameState === "WAITING") {
+                AudioCtx.init();
+                BGM.play().catch(e=>console.log("Autoplay prevented, waiting for interaction"));
+                document.getElementById('start-screen').style.display = 'none';
+                totalScore = 0; 
+                startCountdown(1);
+            } else if (gameState === "LOST") {
+                document.getElementById('game-over').style.display = 'none';
+                totalScore = 0; 
+                startCountdown(1);
+            }
+            keys[e.code] = true;
+        } else {
+            keys[e.code] = true;
+        }
+    });
+    window.addEventListener('keyup', (e) => keys[e.code] = false);
+
+
+    // --- GAME LOOP ---
+    const smoothedForward = new THREE.Vector3(0, 0, 1);
+    const tempQuat = new THREE.Quaternion();
+
+    function animate() {
+        requestAnimationFrame(animate);
+
+        if(gameState !== "PLAYING") return;
+
+        // --- POWER TIMER ---
+        const now = Date.now();
+        const isPowered = now < powerUpEndTime;
+        
+        if (isPowered) {
+            const timeLeft = powerUpEndTime - now;
+            const pct = (timeLeft / CFG.powerDuration) * 100;
+            document.getElementById('power-ui').style.display = 'block';
+            document.getElementById('power-bar-fill').style.width = pct + "%";
+            const barColor = (timeLeft < 1500) ? "#FF0000" : "#00FFFF";
+            document.getElementById('power-bar-fill').style.backgroundColor = barColor;
+            mat.enemy.color.setHex(CFG.colors.enemyVuln);
+        } else {
+            document.getElementById('power-ui').style.display = 'none';
+            mat.enemy.color.setHex(CFG.colors.enemyNormal);
+        }
+
+        // 1. PHYSICS
+        if (keys['Space'] && playerHeight <= 0.05) {
+            playerVerticalSpeed = CFG.jumpForce;
+            AudioCtx.jump();
+        }
+        playerHeight += playerVerticalSpeed;
+        playerVerticalSpeed -= CFG.gravity;
+        if (playerHeight < 0) { playerHeight = 0; playerVerticalSpeed = 0; }
+        playerMesh.position.y = 0.75 + playerHeight;
+
+        // 2. MOVE
+        let turn = 0;
+        if (keys['KeyA'] || keys['ArrowLeft']) turn = 1;
+        if (keys['KeyD'] || keys['ArrowRight']) turn = -1;
+        if (turn !== 0) playerWrapper.rotateY(turn * CFG.turnSpeed);
+
+        let move = 0;
+        if (keys['KeyW'] || keys['ArrowUp']) move = 1;
+        if (keys['KeyS'] || keys['ArrowDown']) move = -1;
+
+        if (move !== 0) {
+            playerWrapper.translateZ(-move * CFG.moveSpeed);
+            const newPos = playerWrapper.position.clone().normalize().multiplyScalar(CFG.planetRadius);
+            let hit = false;
+            for(const obs of obstacles) {
+                if (newPos.distanceTo(obs.pos) < obs.radius) {
+                    if (playerHeight < obs.height) { hit = true; break; }
+                }
+            }
+            if (!hit) {
+                playerWrapper.position.copy(newPos);
+                playerMesh.rotation.z = Math.sin(Date.now() * 0.02) * 0.1;
+            } else {
+                playerWrapper.translateZ(move * CFG.moveSpeed);
+            }
+        } else {
+            playerMesh.rotation.z *= 0.8;
+        }
+
+        // 3. GRAVITY
+        const planetNormal = playerWrapper.position.clone().normalize(); 
+        const currentUp = new THREE.Vector3(0, 1, 0).applyQuaternion(playerWrapper.quaternion);
+        tempQuat.setFromUnitVectors(currentUp, planetNormal);
+        playerWrapper.quaternion.premultiply(tempQuat);
+
+        // 4. INTERACTABLES
+        for(const c of coins) {
+            if(!c.active) continue;
+            c.mesh.rotation.y += 0.05;
+            c.mesh.position.y = 1.5 + Math.sin(Date.now() * 0.005) * 0.2;
+            if (playerWrapper.position.distanceTo(c.group.position) < 2.0) {
+                c.active = false; c.group.visible = false;
+                levelScore++;
+                totalScore += 10;
+                updateHUD();
+                AudioCtx.coin();
+                if(levelScore >= CFG.totalCoins) startCountdown(currentLevel + 1);
+            }
+        }
+        for(const p of powerPills) {
+            if(!p.active) continue;
+            p.mesh.scale.setScalar(1 + Math.sin(Date.now()*0.01)*0.2); 
+            if (playerWrapper.position.distanceTo(p.group.position) < 2.0) {
+                p.active = false; p.group.visible = false;
+                powerUpEndTime = Date.now() + CFG.powerDuration;
+                AudioCtx.powerUp();
+            }
+        }
+
+        // 5. ENEMIES
+        for(const enemy of enemies) {
+            if(!enemy.active) continue;
+
+            const enemyPos = enemy.group.position.clone();
+            const toPlayer = playerWrapper.position.clone().sub(enemyPos);
+            const dist = toPlayer.length();
+            
+            let moveDir = isPowered ? toPlayer.negate() : toPlayer;
+            moveDir.normalize();
+
+            const separation = new THREE.Vector3();
+            let count = 0;
+            for(const other of enemies) {
+                if(other === enemy || !other.active) continue;
+                const diff = enemyPos.clone().sub(other.group.position);
+                const len = diff.length();
+                if(len < 4.0 && len > 0) {
+                    separation.add(diff.normalize().divideScalar(len * 0.5)); 
+                    count++;
+                }
+            }
+            if(count > 0) {
+                moveDir.add(separation.multiplyScalar(2.5)); 
+                moveDir.normalize();
+            }
+
+            const enemyNormal = enemyPos.clone().normalize();
+            const projectedDir = moveDir.sub(enemyNormal.multiplyScalar(moveDir.dot(enemyNormal))).normalize();
+            const spd = isPowered ? CFG.baseEnemySpeed * 0.6 : CFG.baseEnemySpeed;
+            const nextPos = enemyPos.add(projectedDir.multiplyScalar(spd));
+            nextPos.normalize().multiplyScalar(CFG.planetRadius);
+            
+            enemy.group.position.copy(nextPos);
+            const enemyQ = new THREE.Quaternion().setFromUnitVectors(upVector, nextPos.clone().normalize());
+            enemy.group.quaternion.copy(enemyQ);
+
+            if (dist < 1.5) {
+                if(isPowered) {
+                    enemy.active = false;
+                    enemy.group.visible = false;
+                    totalScore += 50; 
+                    updateHUD();
+                    AudioCtx.eatGhost();
+                    setTimeout(() => {
+                        if(gameState !== "PLAYING") return;
+                        enemy.active = true;
+                        enemy.group.visible = true;
+                        enemy.group.position.copy(enemy.spawnPos); 
+                    }, 4000);
+                } else {
+                    gameOver();
+                }
+            }
+        }
+
+        // 6. CAMERA
+        const playerForward = new THREE.Vector3(0, 0, 1).applyQuaternion(playerWrapper.quaternion);
+        smoothedForward.lerp(playerForward, CFG.camLag);
+        const dot = smoothedForward.dot(planetNormal);
+        smoothedForward.sub(planetNormal.clone().multiplyScalar(dot)).normalize();
+        if (isNaN(smoothedForward.x)) smoothedForward.copy(playerForward);
+        const cameraOffset = planetNormal.clone().multiplyScalar(CFG.camHeight).add(smoothedForward.clone().multiplyScalar(CFG.camDistance));
+        camera.position.copy(playerWrapper.position.clone().add(cameraOffset));
+        camera.up.copy(planetNormal);
+        camera.lookAt(playerWrapper.position);
+
+        const sunOffset = new THREE.Vector3(50, 100, 50).applyQuaternion(playerWrapper.quaternion);
+        dirLight.position.copy(playerWrapper.position).add(sunOffset);
+
+        renderer.render(scene, camera);
+    }
+
+    window.addEventListener('resize', () => {
+        const aspect = window.innerWidth / window.innerHeight;
+        camera.left = -d * aspect;
+        camera.right = d * aspect;
+        camera.top = d;
+        camera.bottom = -d;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    animate();
+</script>
+</body>
+</html>
