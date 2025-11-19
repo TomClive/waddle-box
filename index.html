@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Waddle Box on Tiny Planet</title>
     <style>
+        /* PREVENT SCROLLING/ZOOMING ON MOBILE */
         body { margin: 0; overflow: hidden; background: #1a1a2e; font-family: 'Courier New', monospace; user-select: none; -webkit-user-select: none; touch-action: none; }
         
         /* HUD */
@@ -25,19 +26,19 @@
             justify-content: space-between;
             width: 100%;
             color: white;
-            font-size: 18px; /* Slightly smaller for mobile safety */
+            font-size: 16px; /* Readable on mobile */
             font-weight: bold;
             text-shadow: 3px 3px 0 #000;
         }
 
-        .hud-item { background: rgba(0,0,0,0.4); padding: 8px 15px; border-radius: 8px; border: 2px solid #000; margin-bottom: 5px; }
+        .hud-item { background: rgba(0,0,0,0.4); padding: 8px 10px; border-radius: 8px; border: 2px solid #000; }
 
         /* POWER UP UI */
         #power-ui {
             align-self: center;
             text-align: center;
             display: none;
-            margin-bottom: 10px;
+            margin-bottom: 60px; /* Moved up slightly to clear joystick */
         }
 
         #power-text {
@@ -58,7 +59,7 @@
         .overlay {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: white; border: 4px solid black; box-shadow: 10px 10px 0px black;
-            padding: 30px; text-align: center; pointer-events: auto; min-width: 300px; width: 80%;
+            padding: 20px; text-align: center; pointer-events: auto; min-width: 280px; width: 80%;
             display: none; z-index: 100;
         }
 
@@ -80,7 +81,7 @@
         .win { color: #4CAF50; }
         .lose { color: #F44336; }
         
-        #music-note { position: absolute; bottom: 110px; right: 20px; color: white; opacity: 0.5; font-size: 12px; pointer-events: auto; cursor: pointer; z-index: 100; }
+        #music-note { position: absolute; bottom: 130px; right: 20px; color: white; opacity: 0.5; font-size: 12px; pointer-events: auto; cursor: pointer; z-index: 100; }
 
         /* LEADERBOARD STYLES */
         .lb-container { margin-top: 20px; max-height: 200px; overflow-y: auto; text-align: left; border: 2px solid #ddd; padding: 10px; font-size: 14px; }
@@ -95,32 +96,40 @@
         /* --- MOBILE CONTROLS --- */
         #mobile-controls {
             position: absolute; bottom: 20px; left: 0; width: 100%; height: 150px;
-            pointer-events: none; display: none; /* Hidden by default, shown via JS */
+            pointer-events: none; display: none; 
             z-index: 50;
         }
         
+        /* FORCE SHOW ON MOBILE/TABLET */
+        @media (max-width: 1024px) {
+            #mobile-controls { display: block; }
+            #music-note { bottom: 150px; } /* Move music button up so it doesn't overlap jump */
+        }
+
         /* Joystick Area */
         #joystick-zone {
-            position: absolute; bottom: 20px; left: 20px; width: 120px; height: 120px;
+            position: absolute; bottom: 20px; left: 20px; width: 140px; height: 140px;
             background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%; pointer-events: auto;
+            border-radius: 50%; pointer-events: auto; touch-action: none;
         }
         
         #joystick-knob {
-            position: absolute; top: 50%; left: 50%; width: 50px; height: 50px;
+            position: absolute; top: 50%; left: 50%; width: 60px; height: 60px;
             background: rgba(255, 215, 0, 0.5); border-radius: 50%;
             transform: translate(-50%, -50%); border: 2px solid white;
+            pointer-events: none;
         }
 
         /* Jump Button */
         #mobile-jump {
-            position: absolute; bottom: 20px; right: 20px; width: 90px; height: 90px;
-            background: rgba(255, 255, 255, 0.2); border: 3px solid white;
-            border-radius: 50%; pointer-events: auto;
+            position: absolute; bottom: 30px; right: 30px; width: 100px; height: 100px;
+            background: rgba(255, 255, 255, 0.2); border: 4px solid white;
+            border-radius: 50%; pointer-events: auto; touch-action: none;
             display: flex; justify-content: center; align-items: center;
-            color: white; font-weight: bold; font-size: 18px; user-select: none;
+            color: white; font-weight: bold; font-size: 20px; user-select: none;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
         }
-        #mobile-jump:active { background: rgba(255, 215, 0, 0.6); transform: scale(0.95); }
+        #mobile-jump:active { background: rgba(255, 215, 0, 0.6); transform: scale(0.95); border-color: #FFD700; }
 
     </style>
     
@@ -172,7 +181,7 @@
 <div id="start-screen" class="overlay" style="display:block;">
     <h1>Waddle Box<br><small style="font-size:16px">on Tiny Planet</small></h1>
     <p>Arcade Edition</p>
-    <div class="blink">TAP / SPACE TO START</div>
+    <div class="blink">TAP SCREEN TO START</div>
     <button class="small-btn" style="margin-top:15px" onclick="Leaderboard.show(false)">LEADERBOARD</button>
 </div>
 
@@ -201,7 +210,7 @@
         <div id="leaderboard-ui" class="lb-container">Loading...</div>
     </div>
 
-    <div class="blink" style="margin-top:30px">TAP / SPACE TO RESTART</div>
+    <div class="blink" style="margin-top:30px">TAP SCREEN TO RESTART</div>
 </div>
 
 <script type="importmap">
@@ -233,10 +242,7 @@
     try {
         const app = initializeApp(firebaseConfig);
         db = getFirestore(app);
-        console.log("Firebase Initialized Successfully");
-    } catch(e) {
-        console.warn("Firebase init failed:", e);
-    }
+    } catch(e) { console.warn("Firebase init failed:", e); }
 
     window.submitScore = async function() {
         if(!db) { alert("Database not connected."); return; }
@@ -250,16 +256,13 @@
 
         try {
             await addDoc(collection(db, "leaderboard"), {
-                name: name,
-                score: score,
-                timestamp: Date.now()
+                name: name, score: score, timestamp: Date.now()
             });
             document.getElementById('submit-form').style.display = 'none';
             window.Leaderboard.show(true); 
             if(typeof gtag === 'function') gtag('event', 'score_submit', { score: score });
         } catch (e) {
-            console.error("Error adding score: ", e);
-            alert("Could not save score.");
+            console.error(e); alert("Could not save score.");
             btn.disabled = false; btn.innerText = "SUBMIT";
         }
     };
@@ -283,21 +286,17 @@
                     html += `<div class="lb-row"><span class="lb-name">${safeName}</span><span>${data.score}</span></div>`;
                 });
                 ui.innerHTML = html || "No scores yet.";
-            } catch(e) {
-                ui.innerHTML = "Error loading scores.";
-            }
+            } catch(e) { ui.innerHTML = "Error loading scores."; }
         }
     }
 </script>
 
 <script>
     const BGM = new Audio('music.mp3');
-    BGM.loop = true;
-    BGM.volume = 0.4; 
+    BGM.loop = true; BGM.volume = 0.4; 
     let isMuted = false;
     function toggleMute() {
-        isMuted = !isMuted;
-        BGM.muted = isMuted;
+        isMuted = !isMuted; BGM.muted = isMuted;
         document.getElementById('music-note').innerText = "Music: " + (isMuted ? "OFF" : "ON");
     }
 </script>
@@ -306,9 +305,7 @@
     import * as THREE from 'three';
 
     function trackEvent(eventName, params = {}) {
-        if(typeof gtag === 'function') {
-            gtag('event', eventName, params);
-        }
+        if(typeof gtag === 'function') gtag('event', eventName, params);
     }
 
     const AudioCtx = {
@@ -321,8 +318,7 @@
         playTone: function(freq, type, duration, vol=0.1) {
             if(!this.ctx) return;
             if(this.ctx.state === 'suspended') this.ctx.resume();
-            const osc = this.ctx.createOscillator();
-            const gain = this.ctx.createGain();
+            const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
             osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
             gain.gain.setValueAtTime(vol, this.ctx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
@@ -453,7 +449,7 @@
     let playerVerticalSpeed = 0;
     let playerHeight = 0; 
 
-    // --- HELPERS ---
+    // --- GENERATION & LOGIC ---
     function getRandomPos(minDist) {
         const phi = Math.acos(-1 + (2 * Math.random()));
         const theta = Math.sqrt(Math.PI * 50 * phi) * phi;
@@ -471,9 +467,7 @@
     function spawnScenery(type) {
         const pos = getRandomPos(5);
         if (!pos) return false;
-        const group = new THREE.Group();
-        group.position.copy(pos);
-        group.quaternion.setFromUnitVectors(upVector, pos.clone().normalize());
+        const group = new THREE.Group(); group.position.copy(pos); group.quaternion.setFromUnitVectors(upVector, pos.clone().normalize());
         if(type === 'tree') {
             const trunkGeo = new THREE.CylinderGeometry(0.3, 0.5, 2, 6); trunkGeo.translate(0, 1, 0);
             const trunk = new THREE.Mesh(trunkGeo, mat.trunk); trunk.castShadow=true; trunk.receiveShadow=true; addOutline(trunk, trunkGeo); group.add(trunk);
@@ -491,8 +485,7 @@
     }
 
     function spawnCoin() {
-        const pos = getRandomPos(8); 
-        if(!pos) return false; 
+        const pos = getRandomPos(8); if(!pos) return false; 
         const group = new THREE.Group(); group.position.copy(pos); group.quaternion.setFromUnitVectors(upVector, pos.clone().normalize());
         const coinGeo = new THREE.TorusGeometry(0.6, 0.2, 8, 16);
         const coin = new THREE.Mesh(coinGeo, mat.coin); coin.position.y = 1.5; coin.castShadow = true; addOutline(coin, coinGeo);
@@ -502,8 +495,7 @@
     }
 
     function spawnPowerPill() {
-        const pos = getRandomPos(10);
-        if(!pos) return false;
+        const pos = getRandomPos(10); if(!pos) return false;
         const group = new THREE.Group(); group.position.copy(pos); group.quaternion.setFromUnitVectors(upVector, pos.clone().normalize());
         const geo = new THREE.DodecahedronGeometry(0.8);
         const mesh = new THREE.Mesh(geo, mat.powerPill); mesh.position.y = 1.5; mesh.castShadow = true; addOutline(mesh, geo);
@@ -513,8 +505,7 @@
     }
 
     function spawnEnemy() {
-        const pos = getRandomPos(20);
-        if(!pos) return false;
+        const pos = getRandomPos(20); if(!pos) return false;
         const group = new THREE.Group(); group.position.copy(pos); group.quaternion.setFromUnitVectors(upVector, pos.clone().normalize());
         const bodyGeo = new THREE.SphereGeometry(0.9, 16, 16); bodyGeo.scale(1, 0.7, 1); 
         const body = new THREE.Mesh(bodyGeo, mat.enemy); body.position.y = 0.6; body.castShadow = true; body.receiveShadow = true; addOutline(body, bodyGeo);
@@ -523,7 +514,6 @@
         return true;
     }
 
-    // --- LOGIC ---
     function updateHUD() {
         document.getElementById('score-level').innerText = levelScore;
         document.getElementById('score-total').innerText = totalScore;
@@ -579,105 +569,81 @@
         document.getElementById('game-over').style.display = 'block';
         document.getElementById('go-title').innerText = "GAME OVER";
         document.getElementById('go-msg').innerText = "You reached Level " + currentLevel + "\nTotal Score: " + totalScore;
-        
         document.getElementById('submit-form').style.display = 'block';
         document.getElementById('leaderboard-display').style.display = 'none';
         const btn = document.querySelector('#submit-form button');
         btn.disabled = false; btn.innerText = "SUBMIT";
-        
         AudioCtx.die();
         trackEvent('game_over', { level: currentLevel, score: totalScore });
     }
 
-    // --- CONTROLS ---
+    // --- INPUTS & MOBILE CONTROLS ---
     const keys = {};
-
-    // Keyboard
     window.addEventListener('keydown', (e) => {
         if (e.code === 'Space') {
-            handleAction();
-            keys[e.code] = true;
+            handleAction(); keys[e.code] = true;
         } else { keys[e.code] = true; }
     });
     window.addEventListener('keyup', (e) => keys[e.code] = false);
 
-    // Mobile / Touch Logic
-    const joystick = { active: false, originX: 0, originY: 0, currentX: 0, currentY: 0 };
+    const joystick = { active: false, originX: 0, originY: 0 };
     const knob = document.getElementById('joystick-knob');
-
-    // Detect touch capabilities
-    if ('ontouchstart' in window) {
-        document.getElementById('mobile-controls').style.display = 'block';
-    }
-
-    // Joystick Touch Events
+    
     const zone = document.getElementById('joystick-zone');
     zone.addEventListener('touchstart', (e) => {
-        e.preventDefault();
+        e.preventDefault(); // Prevent scroll
         const touch = e.changedTouches[0];
         joystick.active = true;
-        joystick.originX = touch.clientX;
-        joystick.originY = touch.clientY;
+        joystick.originX = touch.clientX; joystick.originY = touch.clientY;
+        joystick.id = touch.identifier; // Track specific finger
         updateJoystickVisuals(touch.clientX, touch.clientY);
-    });
+    }, {passive: false});
 
     zone.addEventListener('touchmove', (e) => {
         e.preventDefault();
         if (!joystick.active) return;
-        const touch = e.changedTouches[0];
-        updateJoystickVisuals(touch.clientX, touch.clientY);
-    });
+        for (let i=0; i<e.changedTouches.length; i++) {
+            if (e.changedTouches[i].identifier === joystick.id) {
+                updateJoystickVisuals(e.changedTouches[i].clientX, e.changedTouches[i].clientY);
+                break;
+            }
+        }
+    }, {passive: false});
 
     zone.addEventListener('touchend', (e) => {
         e.preventDefault();
         joystick.active = false;
-        knob.style.transform = `translate(-50%, -50%)`; // Reset visual
-        // Reset keys
-        keys['KeyW'] = false; keys['KeyS'] = false;
-        keys['KeyA'] = false; keys['KeyD'] = false;
-    });
+        knob.style.transform = `translate(-50%, -50%)`;
+        keys['KeyW'] = false; keys['KeyS'] = false; keys['KeyA'] = false; keys['KeyD'] = false;
+    }, {passive: false});
 
     function updateJoystickVisuals(clientX, clientY) {
         const maxDist = 40; 
         let dx = clientX - joystick.originX;
         let dy = clientY - joystick.originY;
         const dist = Math.sqrt(dx*dx + dy*dy);
-        
-        // Clamp logic
-        if (dist > maxDist) {
-            const ratio = maxDist / dist;
-            dx *= ratio; dy *= ratio;
-        }
-
+        if (dist > maxDist) { const ratio = maxDist / dist; dx *= ratio; dy *= ratio; }
         knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-
-        // Map to Keys (Tank Control Mapping)
+        
         const threshold = 10;
-        keys['KeyW'] = dy < -threshold; // Up
-        keys['KeyS'] = dy > threshold;  // Down
-        keys['KeyA'] = dx < -threshold; // Left
-        keys['KeyD'] = dx > threshold;  // Right
+        keys['KeyW'] = dy < -threshold; keys['KeyS'] = dy > threshold;
+        keys['KeyA'] = dx < -threshold; keys['KeyD'] = dx > threshold;
     }
 
-    // Jump Button Touch
     const jumpBtn = document.getElementById('mobile-jump');
     jumpBtn.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        handleAction();
-        keys['Space'] = true;
-    });
+        e.preventDefault(); handleAction(); keys['Space'] = true;
+    }, {passive: false});
     jumpBtn.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        keys['Space'] = false;
-    });
+        e.preventDefault(); keys['Space'] = false;
+    }, {passive: false});
 
-    // Global tap for Start/Restart (if not clicking buttons)
     document.addEventListener('touchstart', (e) => {
-        if(e.target.tagName === 'BUTTON' || e.target.id === 'mobile-jump' || e.target.id === 'joystick-zone') return;
-        if (gameState === "WAITING" || gameState === "LOST") {
-           handleAction();
+        // Global tap for menus
+        if(e.target.tagName !== 'BUTTON' && e.target.id !== 'mobile-jump' && e.target.id !== 'joystick-zone') {
+            if (gameState === "WAITING" || gameState === "LOST") handleAction();
         }
-    });
+    }, {passive: false});
 
     function handleAction() {
         if (gameState === "WAITING") {
@@ -691,7 +657,7 @@
         }
     }
 
-    // --- LOOP ---
+    // --- ANIMATION LOOP ---
     const smoothedForward = new THREE.Vector3(0, 0, 1);
     const tempQuat = new THREE.Quaternion();
 
