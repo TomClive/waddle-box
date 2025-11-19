@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Waddle Box on Tiny Planet</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #1a1a2e; font-family: 'Courier New', monospace; user-select: none; }
+        body { margin: 0; overflow: hidden; background: #1a1a2e; font-family: 'Courier New', monospace; user-select: none; -webkit-user-select: none; touch-action: none; }
         
         /* HUD */
         #ui-layer {
@@ -16,6 +17,7 @@
             justify-content: space-between;
             padding: 20px;
             box-sizing: border-box;
+            z-index: 10;
         }
 
         #top-bar {
@@ -23,29 +25,30 @@
             justify-content: space-between;
             width: 100%;
             color: white;
-            font-size: 24px;
+            font-size: 18px; /* Slightly smaller for mobile safety */
             font-weight: bold;
             text-shadow: 3px 3px 0 #000;
         }
 
-        .hud-item { background: rgba(0,0,0,0.4); padding: 8px 15px; border-radius: 8px; border: 2px solid #000; }
+        .hud-item { background: rgba(0,0,0,0.4); padding: 8px 15px; border-radius: 8px; border: 2px solid #000; margin-bottom: 5px; }
 
         /* POWER UP UI */
         #power-ui {
             align-self: center;
             text-align: center;
             display: none;
-            margin-bottom: 40px;
+            margin-bottom: 10px;
         }
 
         #power-text {
-            color: #00FFFF; font-size: 32px; font-weight: bold; text-shadow: 0 0 10px #00FFFF; 
-            margin-bottom: 10px; text-transform: uppercase; animation: pulse 0.2s infinite alternate;
+            color: #00FFFF; font-size: 24px; font-weight: bold; text-shadow: 0 0 10px #00FFFF; 
+            margin-bottom: 5px; text-transform: uppercase; animation: pulse 0.2s infinite alternate;
         }
 
         #power-bar-bg {
-            width: 300px; height: 20px; background: rgba(0,0,0,0.5);
-            border: 3px solid white; border-radius: 10px; overflow: hidden; box-shadow: 4px 4px 0px black;
+            width: 200px; height: 15px; background: rgba(0,0,0,0.5);
+            border: 2px solid white; border-radius: 10px; overflow: hidden; box-shadow: 4px 4px 0px black;
+            margin: 0 auto;
         }
 
         #power-bar-fill { width: 100%; height: 100%; background: #00FFFF; transform-origin: left; }
@@ -55,7 +58,7 @@
         .overlay {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: white; border: 4px solid black; box-shadow: 10px 10px 0px black;
-            padding: 30px; text-align: center; pointer-events: auto; min-width: 320px;
+            padding: 30px; text-align: center; pointer-events: auto; min-width: 300px; width: 80%;
             display: none; z-index: 100;
         }
 
@@ -66,28 +69,58 @@
             backdrop-filter: blur(4px); z-index: 90;
         }
         
-        #trans-title { font-size: 50px; color: #FFD700; text-shadow: 4px 4px 0 #000; margin-bottom: 20px; font-weight: bold;}
-        #trans-msg { font-size: 22px; max-width: 600px; text-align: center; margin-bottom: 30px; line-height: 1.6; background: #000; padding: 20px; border: 2px solid white; border-radius: 10px;}
-        #countdown { font-size: 100px; font-weight: bold; text-shadow: 5px 5px 0 #000; color: #FFD700; }
+        #trans-title { font-size: 40px; color: #FFD700; text-shadow: 4px 4px 0 #000; margin-bottom: 20px; font-weight: bold;}
+        #trans-msg { font-size: 18px; max-width: 600px; text-align: center; margin-bottom: 30px; line-height: 1.6; background: #000; padding: 20px; border: 2px solid white; border-radius: 10px;}
+        #countdown { font-size: 80px; font-weight: bold; text-shadow: 5px 5px 0 #000; color: #FFD700; }
 
         .blink { animation: blinker 1s linear infinite; color: #d32f2f; font-weight: bold; margin-top: 20px; font-size: 18px; }
         @keyframes blinker { 50% { opacity: 0; } }
 
-        h1 { margin: 0 0 10px 0; text-transform: uppercase; font-size: 32px; }
+        h1 { margin: 0 0 10px 0; text-transform: uppercase; font-size: 28px; }
         .win { color: #4CAF50; }
         .lose { color: #F44336; }
         
-        #music-note { position: absolute; bottom: 20px; right: 20px; color: white; opacity: 0.5; font-size: 12px; pointer-events: auto; cursor: pointer; }
+        #music-note { position: absolute; bottom: 110px; right: 20px; color: white; opacity: 0.5; font-size: 12px; pointer-events: auto; cursor: pointer; z-index: 100; }
 
         /* LEADERBOARD STYLES */
         .lb-container { margin-top: 20px; max-height: 200px; overflow-y: auto; text-align: left; border: 2px solid #ddd; padding: 10px; font-size: 14px; }
         .lb-row { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding: 5px 0; }
         .lb-name { font-weight: bold; }
         
-        #input-row { display: flex; margin-top: 15px; justify-content: center; gap: 10px; }
-        input { font-family: inherit; padding: 8px; border: 2px solid black; font-weight: bold; text-transform: uppercase; width: 150px;}
+        #input-row { display: flex; margin-top: 15px; justify-content: center; gap: 10px; flex-wrap: wrap; }
+        input { font-family: inherit; padding: 8px; border: 2px solid black; font-weight: bold; text-transform: uppercase; width: 140px;}
         button.small-btn { background: #FFD700; border: 2px solid black; font-family: inherit; font-weight: bold; cursor: pointer; padding: 8px 15px; box-shadow: 2px 2px 0px black; }
         button.small-btn:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0px black; }
+
+        /* --- MOBILE CONTROLS --- */
+        #mobile-controls {
+            position: absolute; bottom: 20px; left: 0; width: 100%; height: 150px;
+            pointer-events: none; display: none; /* Hidden by default, shown via JS */
+            z-index: 50;
+        }
+        
+        /* Joystick Area */
+        #joystick-zone {
+            position: absolute; bottom: 20px; left: 20px; width: 120px; height: 120px;
+            background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%; pointer-events: auto;
+        }
+        
+        #joystick-knob {
+            position: absolute; top: 50%; left: 50%; width: 50px; height: 50px;
+            background: rgba(255, 215, 0, 0.5); border-radius: 50%;
+            transform: translate(-50%, -50%); border: 2px solid white;
+        }
+
+        /* Jump Button */
+        #mobile-jump {
+            position: absolute; bottom: 20px; right: 20px; width: 90px; height: 90px;
+            background: rgba(255, 255, 255, 0.2); border: 3px solid white;
+            border-radius: 50%; pointer-events: auto;
+            display: flex; justify-content: center; align-items: center;
+            color: white; font-weight: bold; font-size: 18px; user-select: none;
+        }
+        #mobile-jump:active { background: rgba(255, 215, 0, 0.6); transform: scale(0.95); }
 
     </style>
     
@@ -105,15 +138,23 @@
 <!-- HUD -->
 <div id="ui-layer">
     <div id="top-bar">
-        <div class="hud-item">TOTAL SCORE: <span id="score-total">0</span></div>
-        <div class="hud-item">LEVEL: <span id="level-num">1</span></div>
-        <div class="hud-item" style="color:#FFD700">COINS: <span id="score-level">0</span> / 20</div>
+        <div class="hud-item">TOTAL: <span id="score-total">0</span></div>
+        <div class="hud-item">LVL: <span id="level-num">1</span></div>
+        <div class="hud-item" style="color:#FFD700"><span id="score-level">0</span>/20</div>
     </div>
     <div id="power-ui">
         <div id="power-text">POWER UP!</div>
         <div id="power-bar-bg"><div id="power-bar-fill"></div></div>
     </div>
     <div id="music-note" onclick="toggleMute()">Music: ON</div>
+</div>
+
+<!-- MOBILE CONTROLS -->
+<div id="mobile-controls">
+    <div id="joystick-zone">
+        <div id="joystick-knob"></div>
+    </div>
+    <div id="mobile-jump">JUMP</div>
 </div>
 
 <!-- TRANSITION -->
@@ -131,26 +172,24 @@
 <div id="start-screen" class="overlay" style="display:block;">
     <h1>Waddle Box<br><small style="font-size:16px">on Tiny Planet</small></h1>
     <p>Arcade Edition</p>
-    <div class="blink">PRESS SPACE TO START</div>
-    <button class="small-btn" onclick="Leaderboard.show(false)">VIEW LEADERBOARD</button>
-    <small style="display:block; margin-top:15px; color:#666;">(Ensure 'music.mp3' is in folder)</small>
+    <div class="blink">TAP / SPACE TO START</div>
+    <button class="small-btn" style="margin-top:15px" onclick="Leaderboard.show(false)">LEADERBOARD</button>
 </div>
 
-<!-- HIGH SCORE OVERLAY (MAIN MENU) -->
+<!-- HIGH SCORE OVERLAY -->
 <div id="highscore-overlay" class="overlay" style="z-index: 150;">
     <h3>TOP PLAYERS</h3>
     <div id="hs-list" class="lb-container">Loading...</div>
     <button class="small-btn" style="margin-top:15px" onclick="document.getElementById('highscore-overlay').style.display='none'">CLOSE</button>
 </div>
 
-<!-- GAME OVER / SUBMIT SCORE -->
+<!-- GAME OVER -->
 <div id="game-over" class="overlay">
     <h1 id="go-title">Game Over</h1>
     <p id="go-msg">Result</p>
     
-    <!-- Score Submission Form -->
     <div id="submit-form">
-        <p style="margin-bottom:5px; font-size:14px;">Submit your score to the world!</p>
+        <p style="margin-bottom:5px; font-size:14px;">Submit your score!</p>
         <div id="input-row">
             <input type="text" id="player-name" placeholder="YOUR NAME" maxlength="10">
             <button class="small-btn" onclick="submitScore()">SUBMIT</button>
@@ -162,7 +201,7 @@
         <div id="leaderboard-ui" class="lb-container">Loading...</div>
     </div>
 
-    <div class="blink" style="margin-top:30px">PRESS SPACE TO RESTART</div>
+    <div class="blink" style="margin-top:30px">TAP / SPACE TO RESTART</div>
 </div>
 
 <script type="importmap">
@@ -177,7 +216,6 @@
 </script>
 
 <script type="module">
-    // --- FIREBASE SETUP ---
     import { initializeApp } from 'firebase/app';
     import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs } from 'firebase/firestore';
 
@@ -200,17 +238,15 @@
         console.warn("Firebase init failed:", e);
     }
 
-    // --- LEADERBOARD LOGIC EXPORTED TO WINDOW ---
     window.submitScore = async function() {
-        if(!db) { alert("Database not connected. Check internet."); return; }
+        if(!db) { alert("Database not connected."); return; }
         
         const rawName = document.getElementById('player-name').value;
         const name = rawName.replace(/[^a-zA-Z0-9 ]/g, '').toUpperCase().trim().substring(0, 10) || "ANON";
         const score = window.finalTotalScore || 0;
         
         const btn = document.querySelector('#submit-form button');
-        btn.disabled = true;
-        btn.innerText = "...";
+        btn.disabled = true; btn.innerText = "...";
 
         try {
             await addDoc(collection(db, "leaderboard"), {
@@ -218,55 +254,43 @@
                 score: score,
                 timestamp: Date.now()
             });
-            
             document.getElementById('submit-form').style.display = 'none';
             window.Leaderboard.show(true); 
-            
             if(typeof gtag === 'function') gtag('event', 'score_submit', { score: score });
         } catch (e) {
             console.error("Error adding score: ", e);
-            alert("Could not save score. Check Firestore config.");
-            btn.disabled = false;
-            btn.innerText = "SUBMIT";
+            alert("Could not save score.");
+            btn.disabled = false; btn.innerText = "SUBMIT";
         }
     };
 
     window.Leaderboard = {
         show: async function(inGameOver = false) {
             if(!db) { alert("Leaderboard unavailable."); return; }
-
-            // Decide which container to use
             const containerId = inGameOver ? 'leaderboard-ui' : 'hs-list';
             const wrapperId = inGameOver ? 'leaderboard-display' : 'highscore-overlay';
-            
-            // Show the wrapper
             document.getElementById(wrapperId).style.display = 'block';
-            
             const ui = document.getElementById(containerId);
             ui.innerHTML = "Loading...";
 
             try {
                 const q = query(collection(db, "leaderboard"), orderBy("score", "desc"), limit(10));
                 const querySnapshot = await getDocs(q);
-                
                 let html = "";
                 querySnapshot.forEach((doc) => {
                     const data = doc.data();
-                    // Sanitize HTML
                     const safeName = data.name ? data.name.replace(/</g, "&lt;") : "ANON";
                     html += `<div class="lb-row"><span class="lb-name">${safeName}</span><span>${data.score}</span></div>`;
                 });
                 ui.innerHTML = html || "No scores yet.";
             } catch(e) {
                 ui.innerHTML = "Error loading scores.";
-                console.error(e);
             }
         }
     }
 </script>
 
 <script>
-    // --- BGM CONTROLLER ---
     const BGM = new Audio('music.mp3');
     BGM.loop = true;
     BGM.volume = 0.4; 
@@ -287,7 +311,6 @@
         }
     }
 
-    // --- AUDIO SFX ---
     const AudioCtx = {
         ctx: null,
         init: function() {
@@ -300,45 +323,33 @@
             if(this.ctx.state === 'suspended') this.ctx.resume();
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
-            osc.type = type;
-            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+            osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
             gain.gain.setValueAtTime(vol, this.ctx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
-            osc.connect(gain);
-            gain.connect(this.ctx.destination);
-            osc.start();
-            osc.stop(this.ctx.currentTime + duration);
+            osc.connect(gain); gain.connect(this.ctx.destination);
+            osc.start(); osc.stop(this.ctx.currentTime + duration);
         },
         jump: function() { this.playTone(150, 'triangle', 0.1, 0.1); },
         coin: function() { this.playTone(1200, 'sine', 0.1, 0.05); },
         powerUp: function() {
             if(!this.ctx) return;
-            const osc = this.ctx.createOscillator();
-            const gain = this.ctx.createGain();
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(200, this.ctx.currentTime);
+            const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+            osc.type = 'square'; osc.frequency.setValueAtTime(200, this.ctx.currentTime);
             osc.frequency.linearRampToValueAtTime(600, this.ctx.currentTime + 0.4);
             gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
             gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.4);
-            osc.connect(gain);
-            gain.connect(this.ctx.destination);
-            osc.start();
-            osc.stop(this.ctx.currentTime + 0.4);
+            osc.connect(gain); gain.connect(this.ctx.destination);
+            osc.start(); osc.stop(this.ctx.currentTime + 0.4);
         },
         levelUp: function() {
             if(!this.ctx) return;
-            const osc = this.ctx.createOscillator();
-            const gain = this.ctx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+            const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+            osc.type = 'sine'; osc.frequency.setValueAtTime(400, this.ctx.currentTime);
             osc.frequency.setValueAtTime(600, this.ctx.currentTime + 0.1);
             osc.frequency.setValueAtTime(800, this.ctx.currentTime + 0.2);
-            gain.gain.value = 0.1;
-            gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.6);
-            osc.connect(gain);
-            gain.connect(this.ctx.destination);
-            osc.start();
-            osc.stop(this.ctx.currentTime + 0.6);
+            gain.gain.value = 0.1; gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.6);
+            osc.connect(gain); gain.connect(this.ctx.destination);
+            osc.start(); osc.stop(this.ctx.currentTime + 0.6);
         },
         eatGhost: function() {
             this.playTone(100, 'sawtooth', 0.1, 0.1); 
@@ -346,21 +357,15 @@
         },
         die: function() {
             if(!this.ctx) return;
-            const osc = this.ctx.createOscillator();
-            const gain = this.ctx.createGain();
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(200, this.ctx.currentTime);
+            const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+            osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, this.ctx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(10, this.ctx.currentTime + 0.5);
-            gain.gain.value = 0.2;
-            gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.5);
-            osc.connect(gain);
-            gain.connect(this.ctx.destination);
-            osc.start();
-            osc.stop(this.ctx.currentTime + 0.5);
+            gain.gain.value = 0.2; gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.5);
+            osc.connect(gain); gain.connect(this.ctx.destination);
+            osc.start(); osc.stop(this.ctx.currentTime + 0.5);
         }
     };
 
-    // --- CONFIG ---
     const CFG = {
         colors: {
             bg: 0x1a1a2e, planet: 0x7Ec850, player: 0xFFD700, enemyNormal: 0xFF4444, enemyVuln: 0x4444FF,
@@ -371,7 +376,6 @@
         camHeight: 25, camDistance: 35, camLag: 0.08
     };
 
-    // --- STATE ---
     let gameState = "WAITING"; 
     let currentLevel = 1;
     let levelScore = 0;
@@ -380,7 +384,6 @@
     const upVector = new THREE.Vector3(0, 1, 0);
     let obstacles = [], coins = [], powerPills = [], enemies = [];   
 
-    // --- THREEJS SETUP ---
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(CFG.colors.bg);
     scene.fog = new THREE.Fog(CFG.colors.bg, 60, 100);
@@ -586,24 +589,107 @@
         trackEvent('game_over', { level: currentLevel, score: totalScore });
     }
 
-    // --- MAIN INPUT ---
+    // --- CONTROLS ---
     const keys = {};
+
+    // Keyboard
     window.addEventListener('keydown', (e) => {
         if (e.code === 'Space') {
-            if (gameState === "WAITING") {
-                AudioCtx.init();
-                BGM.play().catch(e=>console.log("Autoplay prevented"));
-                document.getElementById('start-screen').style.display = 'none';
-                totalScore = 0; startCountdown(1);
-            } else if (gameState === "LOST") {
-                document.getElementById('game-over').style.display = 'none';
-                totalScore = 0; startCountdown(1);
-            }
+            handleAction();
             keys[e.code] = true;
         } else { keys[e.code] = true; }
     });
     window.addEventListener('keyup', (e) => keys[e.code] = false);
 
+    // Mobile / Touch Logic
+    const joystick = { active: false, originX: 0, originY: 0, currentX: 0, currentY: 0 };
+    const knob = document.getElementById('joystick-knob');
+
+    // Detect touch capabilities
+    if ('ontouchstart' in window) {
+        document.getElementById('mobile-controls').style.display = 'block';
+    }
+
+    // Joystick Touch Events
+    const zone = document.getElementById('joystick-zone');
+    zone.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const touch = e.changedTouches[0];
+        joystick.active = true;
+        joystick.originX = touch.clientX;
+        joystick.originY = touch.clientY;
+        updateJoystickVisuals(touch.clientX, touch.clientY);
+    });
+
+    zone.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        if (!joystick.active) return;
+        const touch = e.changedTouches[0];
+        updateJoystickVisuals(touch.clientX, touch.clientY);
+    });
+
+    zone.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        joystick.active = false;
+        knob.style.transform = `translate(-50%, -50%)`; // Reset visual
+        // Reset keys
+        keys['KeyW'] = false; keys['KeyS'] = false;
+        keys['KeyA'] = false; keys['KeyD'] = false;
+    });
+
+    function updateJoystickVisuals(clientX, clientY) {
+        const maxDist = 40; 
+        let dx = clientX - joystick.originX;
+        let dy = clientY - joystick.originY;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        
+        // Clamp logic
+        if (dist > maxDist) {
+            const ratio = maxDist / dist;
+            dx *= ratio; dy *= ratio;
+        }
+
+        knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+
+        // Map to Keys (Tank Control Mapping)
+        const threshold = 10;
+        keys['KeyW'] = dy < -threshold; // Up
+        keys['KeyS'] = dy > threshold;  // Down
+        keys['KeyA'] = dx < -threshold; // Left
+        keys['KeyD'] = dx > threshold;  // Right
+    }
+
+    // Jump Button Touch
+    const jumpBtn = document.getElementById('mobile-jump');
+    jumpBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        handleAction();
+        keys['Space'] = true;
+    });
+    jumpBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        keys['Space'] = false;
+    });
+
+    // Global tap for Start/Restart (if not clicking buttons)
+    document.addEventListener('touchstart', (e) => {
+        if(e.target.tagName === 'BUTTON' || e.target.id === 'mobile-jump' || e.target.id === 'joystick-zone') return;
+        if (gameState === "WAITING" || gameState === "LOST") {
+           handleAction();
+        }
+    });
+
+    function handleAction() {
+        if (gameState === "WAITING") {
+            AudioCtx.init();
+            BGM.play().catch(e=>console.log("Autoplay prevented"));
+            document.getElementById('start-screen').style.display = 'none';
+            totalScore = 0; startCountdown(1);
+        } else if (gameState === "LOST") {
+            document.getElementById('game-over').style.display = 'none';
+            totalScore = 0; startCountdown(1);
+        }
+    }
 
     // --- LOOP ---
     const smoothedForward = new THREE.Vector3(0, 0, 1);
