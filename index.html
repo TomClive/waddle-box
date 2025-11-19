@@ -40,15 +40,12 @@
         #power-bar-fill { width: 100%; height: 100%; background: #00FFFF; transform-origin: left; }
         @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.1); } }
 
-        /* OVERLAYS (START / GAME OVER) */
+        /* OVERLAYS */
         .overlay {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: white; border: 4px solid black; box-shadow: 10px 10px 0px black;
             padding: 30px; text-align: center; pointer-events: auto; 
-            
-            /* FIX: Cap width so it doesn't look huge on desktop */
-            width: 90%; max-width: 500px; 
-            border-radius: 4px;
+            width: 90%; max-width: 500px; border-radius: 4px;
             display: none; z-index: 100;
         }
 
@@ -80,39 +77,40 @@
         }
         button.play-btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0px black; }
 
-        /* LEADERBOARD STYLES */
+        /* LEADERBOARD */
         .lb-container { margin-top: 10px; max-height: 250px; overflow-y: auto; text-align: left; border: 2px solid #ddd; padding: 10px; font-size: 14px; background: #f9f9f9; }
         .lb-row { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding: 5px 0; }
         .lb-name { font-weight: bold; }
-        
         #input-row { display: flex; margin-top: 15px; justify-content: center; gap: 10px; flex-wrap: wrap; }
         input { font-family: inherit; padding: 10px; border: 2px solid black; font-weight: bold; text-transform: uppercase; width: 160px; font-size: 16px;}
 
-        /* --- MOBILE CONTROLS --- */
+        /* --- MOBILE D-PAD --- */
         #mobile-controls {
-            position: absolute; bottom: 20px; left: 0; width: 100%; height: 150px;
+            position: absolute; bottom: 20px; left: 0; width: 100%; height: 160px;
             pointer-events: none; display: none; z-index: 50;
         }
-        
-        /* Show on anything tablet sized or smaller */
         @media (max-width: 1024px) {
             #mobile-controls { display: block; }
-            #music-note { top: 80px; right: 20px; bottom: auto; } /* Move music button out of way */
+            #music-note { top: 80px; right: 20px; bottom: auto; } 
             h1 { font-size: 28px; }
         }
 
-        /* Joystick Area */
-        #joystick-zone {
-            position: absolute; bottom: 30px; left: 30px; width: 120px; height: 120px;
-            background: rgba(255, 255, 255, 0.15); border: 2px solid rgba(255, 255, 255, 0.4);
-            border-radius: 50%; pointer-events: auto; touch-action: none;
+        /* D-PAD Layout */
+        #dpad {
+            position: absolute; bottom: 30px; left: 30px; width: 140px; height: 140px;
+            pointer-events: auto; touch-action: none;
         }
+        .d-btn {
+            position: absolute; width: 46px; height: 46px;
+            background: rgba(255, 255, 255, 0.2); border: 2px solid rgba(255,255,255,0.5);
+            border-radius: 8px; box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+        }
+        .d-btn:active { background: rgba(255, 215, 0, 0.6); border-color: #FFD700; transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.3); }
         
-        #joystick-knob {
-            position: absolute; top: 50%; left: 50%; width: 50px; height: 50px;
-            background: rgba(255, 215, 0, 0.8); border-radius: 50%;
-            transform: translate(-50%, -50%); border: 2px solid white; pointer-events: none;
-        }
+        #btn-up { top: 0; left: 47px; }
+        #btn-down { bottom: 0; left: 47px; }
+        #btn-left { top: 47px; left: 0; }
+        #btn-right { top: 47px; right: 0; }
 
         /* Jump Button */
         #mobile-jump {
@@ -138,7 +136,6 @@
 </head>
 <body>
 
-<!-- HUD -->
 <div id="ui-layer">
     <div id="top-bar">
         <div class="hud-item">TOTAL: <span id="score-total">0</span></div>
@@ -152,50 +149,45 @@
     <div id="music-note" onclick="toggleMute()">Music: ON</div>
 </div>
 
-<!-- MOBILE CONTROLS -->
+<!-- MOBILE D-PAD -->
 <div id="mobile-controls">
-    <div id="joystick-zone">
-        <div id="joystick-knob"></div>
+    <div id="dpad">
+        <div id="btn-up" class="d-btn"></div>
+        <div id="btn-down" class="d-btn"></div>
+        <div id="btn-left" class="d-btn"></div>
+        <div id="btn-right" class="d-btn"></div>
     </div>
     <div id="mobile-jump">JUMP</div>
 </div>
 
-<!-- TRANSITION -->
 <div id="transition-screen">
     <div id="trans-title">GET READY</div>
     <div id="trans-msg">
         1. Collect 20 Gold Coins.<br>
-        2. Avoid the Red Slimes.<br>
+        2. Avoid the Red Slimes (or jump over them!)<br>
         3. Eat Blue Pills to chase them back!
     </div>
     <div id="countdown">3</div>
 </div>
 
-<!-- START SCREEN -->
 <div id="start-screen" class="overlay" style="display:block;">
     <h1>Waddle Box<br><small style="font-size:16px; color:#666;">on Tiny Planet</small></h1>
-    
-    <!-- MOBILE FIX: Explicit Button -->
     <button class="play-btn" onclick="handleAction()">PLAY GAME</button>
-    
     <div style="margin-top:20px">
         <button class="small-btn" onclick="Leaderboard.show(false)">LEADERBOARD</button>
     </div>
     <small style="display:block; margin-top:15px; color:#aaa;">Rotate phone for best experience</small>
 </div>
 
-<!-- HIGH SCORE OVERLAY -->
 <div id="highscore-overlay" class="overlay" style="z-index: 150;">
     <h3>TOP PLAYERS</h3>
     <div id="hs-list" class="lb-container">Loading...</div>
     <button class="small-btn" style="margin-top:15px" onclick="document.getElementById('highscore-overlay').style.display='none'">CLOSE</button>
 </div>
 
-<!-- GAME OVER -->
 <div id="game-over" class="overlay">
     <h1 id="go-title">Game Over</h1>
     <p id="go-msg">Result</p>
-    
     <div id="submit-form">
         <p style="margin-bottom:5px; font-size:14px;">Submit your score!</p>
         <div id="input-row">
@@ -203,12 +195,10 @@
             <button class="small-btn" onclick="submitScore()">SUBMIT</button>
         </div>
     </div>
-    
     <div id="leaderboard-display" style="display:none;">
         <h3>TOP PLAYERS</h3>
         <div id="leaderboard-ui" class="lb-container">Loading...</div>
     </div>
-
     <div style="margin-top:30px">
         <button class="play-btn" onclick="handleAction()">PLAY AGAIN</button>
     </div>
@@ -247,18 +237,13 @@
 
     window.submitScore = async function() {
         if(!db) { alert("Database not connected."); return; }
-        
         const rawName = document.getElementById('player-name').value;
         const name = rawName.replace(/[^a-zA-Z0-9 ]/g, '').toUpperCase().trim().substring(0, 10) || "ANON";
         const score = window.finalTotalScore || 0;
-        
         const btn = document.querySelector('#submit-form button');
         btn.disabled = true; btn.innerText = "...";
-
         try {
-            await addDoc(collection(db, "leaderboard"), {
-                name: name, score: score, timestamp: Date.now()
-            });
+            await addDoc(collection(db, "leaderboard"), { name: name, score: score, timestamp: Date.now() });
             document.getElementById('submit-form').style.display = 'none';
             window.Leaderboard.show(true); 
             if(typeof gtag === 'function') gtag('event', 'score_submit', { score: score });
@@ -276,7 +261,6 @@
             document.getElementById(wrapperId).style.display = 'block';
             const ui = document.getElementById(containerId);
             ui.innerHTML = "Loading...";
-
             try {
                 const q = query(collection(db, "leaderboard"), orderBy("score", "desc"), limit(10));
                 const querySnapshot = await getDocs(q);
@@ -300,8 +284,6 @@
         isMuted = !isMuted; BGM.muted = isMuted;
         document.getElementById('music-note').innerText = "Music: " + (isMuted ? "OFF" : "ON");
     }
-
-    // GLOBALLY EXPOSE START FUNCTION FOR BUTTONS
     window.handleAction = function() {
         if (window.gameState === "WAITING") {
             if(window.AudioCtx) window.AudioCtx.init();
@@ -317,11 +299,8 @@
 
 <script type="module">
     import * as THREE from 'three';
-
-    // EXPOSE STATE GLOBALLY FOR HTML BUTTONS
-    window.gameState = "WAITING"; 
-    window.totalScore = 0;
-    window.AudioCtx = {
+    function trackEvent(eventName, params = {}) { if(typeof gtag === 'function') gtag('event', eventName, params); }
+    const AudioCtx = {
         ctx: null,
         init: function() {
             if (this.ctx) return;
@@ -329,8 +308,7 @@
             this.ctx = new AudioContext();
         },
         playTone: function(freq, type, duration, vol=0.1) {
-            if(!this.ctx) return;
-            if(this.ctx.state === 'suspended') this.ctx.resume();
+            if(!this.ctx) return; if(this.ctx.state === 'suspended') this.ctx.resume();
             const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
             osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
             gain.gain.setValueAtTime(vol, this.ctx.currentTime);
@@ -340,52 +318,24 @@
         },
         jump: function() { this.playTone(150, 'triangle', 0.1, 0.1); },
         coin: function() { this.playTone(1200, 'sine', 0.1, 0.05); },
-        powerUp: function() {
-            if(!this.ctx) return;
-            const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
-            osc.type = 'square'; osc.frequency.setValueAtTime(200, this.ctx.currentTime);
-            osc.frequency.linearRampToValueAtTime(600, this.ctx.currentTime + 0.4);
-            gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
-            gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.4);
-            osc.connect(gain); gain.connect(this.ctx.destination);
-            osc.start(); osc.stop(this.ctx.currentTime + 0.4);
-        },
-        levelUp: function() {
-            if(!this.ctx) return;
-            const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
-            osc.type = 'sine'; osc.frequency.setValueAtTime(400, this.ctx.currentTime);
-            osc.frequency.setValueAtTime(600, this.ctx.currentTime + 0.1);
-            osc.frequency.setValueAtTime(800, this.ctx.currentTime + 0.2);
-            gain.gain.value = 0.1; gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.6);
-            osc.connect(gain); gain.connect(this.ctx.destination);
-            osc.start(); osc.stop(this.ctx.currentTime + 0.6);
-        },
-        eatGhost: function() {
-            this.playTone(100, 'sawtooth', 0.1, 0.1); 
-            setTimeout(() => this.playTone(150, 'sawtooth', 0.1, 0.1), 50);
-        },
-        die: function() {
-            if(!this.ctx) return;
-            const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
-            osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, this.ctx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(10, this.ctx.currentTime + 0.5);
-            gain.gain.value = 0.2; gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.5);
-            osc.connect(gain); gain.connect(this.ctx.destination);
-            osc.start(); osc.stop(this.ctx.currentTime + 0.5);
-        }
+        powerUp: function() { if(!this.ctx) return; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain(); osc.type = 'square'; osc.frequency.setValueAtTime(200, this.ctx.currentTime); osc.frequency.linearRampToValueAtTime(600, this.ctx.currentTime + 0.4); gain.gain.setValueAtTime(0.1, this.ctx.currentTime); gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.4); osc.connect(gain); gain.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + 0.4); },
+        levelUp: function() { if(!this.ctx) return; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(400, this.ctx.currentTime); osc.frequency.setValueAtTime(600, this.ctx.currentTime + 0.1); osc.frequency.setValueAtTime(800, this.ctx.currentTime + 0.2); gain.gain.value = 0.1; gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.6); osc.connect(gain); gain.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + 0.6); },
+        eatGhost: function() { this.playTone(100, 'sawtooth', 0.1, 0.1); setTimeout(() => this.playTone(150, 'sawtooth', 0.1, 0.1), 50); },
+        die: function() { if(!this.ctx) return; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain(); osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, this.ctx.currentTime); osc.frequency.exponentialRampToValueAtTime(10, this.ctx.currentTime + 0.5); gain.gain.value = 0.2; gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.5); osc.connect(gain); gain.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + 0.5); }
     };
 
     const CFG = {
-        colors: {
-            bg: 0x1a1a2e, planet: 0x7Ec850, player: 0xFFD700, enemyNormal: 0xFF4444, enemyVuln: 0x4444FF,
-            coin: 0xFFD700, powerPill: 0x00FFFF, tree: 0x2E7D32, trunk: 0x5D4037, rock: 0x757575, outline: 0x000000
-        },
+        colors: { bg: 0x1a1a2e, planet: 0x7Ec850, player: 0xFFD700, enemyNormal: 0xFF4444, enemyVuln: 0x4444FF, coin: 0xFFD700, powerPill: 0x00FFFF, tree: 0x2E7D32, trunk: 0x5D4037, rock: 0x757575, outline: 0x000000 },
         planetRadius: 30, moveSpeed: 0.28, turnSpeed: 0.06, jumpForce: 0.65, gravity: 0.035,
         baseEnemySpeed: 0.13, totalCoins: 20, powerDuration: 6000, outlineThickness: 0.025,
         camHeight: 25, camDistance: 35, camLag: 0.08
     };
 
-    let currentLevel = 1;
+    window.gameState = "WAITING"; 
+    window.totalScore = 0;
+    window.currentLevel = 1;
+    window.AudioCtx = AudioCtx;
+    
     let levelScore = 0;
     let powerUpEndTime = 0;
     const upVector = new THREE.Vector3(0, 1, 0);
@@ -394,9 +344,7 @@
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(CFG.colors.bg);
     scene.fog = new THREE.Fog(CFG.colors.bg, 60, 100);
-
-    const worldLayer = new THREE.Group();
-    scene.add(worldLayer);
+    const worldLayer = new THREE.Group(); scene.add(worldLayer);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -411,12 +359,9 @@
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     scene.add(ambientLight);
-
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
-    dirLight.castShadow = true;
-    dirLight.shadow.mapSize.set(2048, 2048);
-    dirLight.shadow.camera.left = -50; dirLight.shadow.camera.right = 50;
-    dirLight.shadow.camera.top = 50; dirLight.shadow.camera.bottom = -50;
+    dirLight.castShadow = true; dirLight.shadow.mapSize.set(2048, 2048);
+    dirLight.shadow.camera.left = -50; dirLight.shadow.camera.right = 50; dirLight.shadow.camera.top = 50; dirLight.shadow.camera.bottom = -50;
     scene.add(dirLight);
 
     const mat = {
@@ -440,27 +385,17 @@
 
     const planetGeo = new THREE.IcosahedronGeometry(CFG.planetRadius, 5); 
     const planet = new THREE.Mesh(planetGeo, mat.planet);
-    planet.receiveShadow = true;
-    addOutline(planet, planetGeo, 0.1);
-    scene.add(planet);
+    planet.receiveShadow = true; addOutline(planet, planetGeo, 0.1); scene.add(planet);
 
-    const playerWrapper = new THREE.Group(); 
-    playerWrapper.position.set(0, CFG.planetRadius, 0);
-    scene.add(playerWrapper);
+    const playerWrapper = new THREE.Group(); playerWrapper.position.set(0, CFG.planetRadius, 0); scene.add(playerWrapper);
     dirLight.target = playerWrapper;
-
     const playerGeo = new THREE.BoxGeometry(1.5, 1.5, 1.5);
-    const playerMesh = new THREE.Mesh(playerGeo, mat.player); 
-    playerMesh.position.y = 0.75; 
-    playerMesh.castShadow = true;
-    playerMesh.receiveShadow = true;
-    addOutline(playerMesh, playerGeo);
-    playerWrapper.add(playerMesh);
+    const playerMesh = new THREE.Mesh(playerGeo, mat.player); playerMesh.position.y = 0.75; 
+    playerMesh.castShadow = true; playerMesh.receiveShadow = true;
+    addOutline(playerMesh, playerGeo); playerWrapper.add(playerMesh);
 
-    let playerVerticalSpeed = 0;
-    let playerHeight = 0; 
+    let playerVerticalSpeed = 0; let playerHeight = 0; let groundLevel = 0;
 
-    // --- HELPERS ---
     function getRandomPos(minDist) {
         const phi = Math.acos(-1 + (2 * Math.random()));
         const theta = Math.sqrt(Math.PI * 50 * phi) * phi;
@@ -469,32 +404,26 @@
         const z = CFG.planetRadius * Math.cos(phi);
         const pos = new THREE.Vector3(x, y, z);
         if (pos.distanceTo(new THREE.Vector3(0, CFG.planetRadius, 0)) < minDist) return null;
-        for(const obs of obstacles) {
-            if (pos.distanceTo(obs.pos) < obs.radius + 1) return null;
-        }
+        for(const obs of obstacles) { if (pos.distanceTo(obs.pos) < obs.radius + 1) return null; }
         return pos;
     }
 
     function spawnScenery(type) {
-        const pos = getRandomPos(5);
-        if (!pos) return false;
-        const group = new THREE.Group();
-        group.position.copy(pos);
-        group.quaternion.setFromUnitVectors(upVector, pos.clone().normalize());
+        const pos = getRandomPos(5); if (!pos) return false;
+        const group = new THREE.Group(); group.position.copy(pos); group.quaternion.setFromUnitVectors(upVector, pos.clone().normalize());
         if(type === 'tree') {
             const trunkGeo = new THREE.CylinderGeometry(0.3, 0.5, 2, 6); trunkGeo.translate(0, 1, 0);
             const trunk = new THREE.Mesh(trunkGeo, mat.trunk); trunk.castShadow=true; trunk.receiveShadow=true; addOutline(trunk, trunkGeo); group.add(trunk);
             const leavesGeo = new THREE.ConeGeometry(1.5, 3, 5); leavesGeo.translate(0, 3, 0);
             const leaves = new THREE.Mesh(leavesGeo, mat.tree); leaves.castShadow=true; addOutline(leaves, leavesGeo); group.add(leaves);
-            obstacles.push({ pos: pos, radius: 0.6, height: 10 }); 
+            obstacles.push({ pos: pos, radius: 0.6, height: 8, type: 'tree' }); 
         } else {
             const rockGeo = new THREE.DodecahedronGeometry(0.9, 0);
             const rock = new THREE.Mesh(rockGeo, mat.rock); rock.position.y=0.6; rock.castShadow=true; rock.receiveShadow=true;
             rock.rotation.set(Math.random(), Math.random(), Math.random()); addOutline(rock, rockGeo); group.add(rock);
-            obstacles.push({ pos: pos, radius: 1.3, height: 1.5 });
+            obstacles.push({ pos: pos, radius: 1.3, height: 1.2, type: 'rock' });
         }
-        worldLayer.add(group);
-        return true;
+        worldLayer.add(group); return true;
     }
 
     function spawnCoin() {
@@ -502,153 +431,62 @@
         const group = new THREE.Group(); group.position.copy(pos); group.quaternion.setFromUnitVectors(upVector, pos.clone().normalize());
         const coinGeo = new THREE.TorusGeometry(0.6, 0.2, 8, 16);
         const coin = new THREE.Mesh(coinGeo, mat.coin); coin.position.y = 1.5; coin.castShadow = true; addOutline(coin, coinGeo);
-        group.add(coin); worldLayer.add(group);
-        coins.push({ mesh: coin, group: group, active: true });
-        return true; 
+        group.add(coin); worldLayer.add(group); coins.push({ mesh: coin, group: group, active: true }); return true; 
     }
-
     function spawnPowerPill() {
         const pos = getRandomPos(10); if(!pos) return false;
         const group = new THREE.Group(); group.position.copy(pos); group.quaternion.setFromUnitVectors(upVector, pos.clone().normalize());
         const geo = new THREE.DodecahedronGeometry(0.8);
         const mesh = new THREE.Mesh(geo, mat.powerPill); mesh.position.y = 1.5; mesh.castShadow = true; addOutline(mesh, geo);
-        group.add(mesh); worldLayer.add(group);
-        powerPills.push({ mesh: mesh, group: group, active: true });
-        return true;
+        group.add(mesh); worldLayer.add(group); powerPills.push({ mesh: mesh, group: group, active: true }); return true;
     }
-
     function spawnEnemy() {
         const pos = getRandomPos(20); if(!pos) return false;
         const group = new THREE.Group(); group.position.copy(pos); group.quaternion.setFromUnitVectors(upVector, pos.clone().normalize());
         const bodyGeo = new THREE.SphereGeometry(0.9, 16, 16); bodyGeo.scale(1, 0.7, 1); 
         const body = new THREE.Mesh(bodyGeo, mat.enemy); body.position.y = 0.6; body.castShadow = true; body.receiveShadow = true; addOutline(body, bodyGeo);
-        group.add(body); worldLayer.add(group);
-        enemies.push({ group: group, active: true, spawnPos: pos.clone() });
-        return true;
+        group.add(body); worldLayer.add(group); enemies.push({ group: group, active: true, spawnPos: pos.clone() }); return true;
     }
 
     function updateHUD() {
         document.getElementById('score-level').innerText = levelScore;
         document.getElementById('score-total').innerText = window.totalScore;
-        document.getElementById('level-num').innerText = currentLevel;
+        document.getElementById('level-num').innerText = window.currentLevel;
     }
 
     function buildLevel(lvl) {
         obstacles = []; coins = []; powerPills = []; enemies = [];
         while(worldLayer.children.length > 0){ worldLayer.remove(worldLayer.children[0]); }
-        for(let i=0; i<30; i++) spawnScenery('tree');
-        for(let i=0; i<10; i++) spawnScenery('rock');
-        while(coins.length < CFG.totalCoins) spawnCoin();
-        while(powerPills.length < 3) spawnPowerPill();
-        const enemyCount = 4 + (lvl * 2); 
-        while(enemies.length < enemyCount) spawnEnemy();
+        for(let i=0; i<30; i++) spawnScenery('tree'); for(let i=0; i<10; i++) spawnScenery('rock');
+        while(coins.length < CFG.totalCoins) spawnCoin(); while(powerPills.length < 3) spawnPowerPill();
+        const enemyCount = 4 + (lvl * 2); while(enemies.length < enemyCount) spawnEnemy();
         levelScore = 0; powerUpEndTime = 0; updateHUD();
-        playerWrapper.position.set(0, CFG.planetRadius, 0);
-        playerWrapper.quaternion.set(0,0,0,1);
-        playerHeight = 0; playerVerticalSpeed = 0;
-        window.currentLevel = lvl; 
+        playerWrapper.position.set(0, CFG.planetRadius, 0); playerWrapper.quaternion.set(0,0,0,1);
+        playerHeight = 0; playerVerticalSpeed = 0; groundLevel = 0;
+        window.currentLevel = lvl; trackEvent('level_start', { level: lvl });
     }
 
-    // EXPORT START COUNTDOWN
-    window.startCountdown = function(nextLvl) {
-        window.gameState = "COUNTDOWN";
-        window.AudioCtx.levelUp();
-        const screen = document.getElementById('transition-screen');
-        const title = document.getElementById('trans-title');
-        const msg = document.getElementById('trans-msg');
-        const countUi = document.getElementById('countdown');
-        screen.style.display = 'flex';
-        if(nextLvl === 1) {
-            title.innerText = "GET READY";
-            msg.innerHTML = "1. Collect 20 Gold Coins.<br>2. Avoid the Red Slimes.<br>3. Eat Blue Pills to chase them back!";
-        } else {
-            title.innerText = "LEVEL COMPLETE";
-            msg.innerHTML = "Nice work! Prepare for Level " + nextLvl;
-        }
-        let count = 3; countUi.innerText = count;
-        const interval = setInterval(() => {
-            count--;
-            if(count > 0) { countUi.innerText = count; } else {
-                clearInterval(interval); screen.style.display = 'none';
-                currentLevel = nextLvl; buildLevel(currentLevel); window.gameState = "PLAYING";
-            }
-        }, 1000);
-    }
-
-    function gameOver() {
-        window.gameState = "LOST";
-        window.finalTotalScore = window.totalScore; 
-        document.getElementById('game-over').style.display = 'block';
-        document.getElementById('go-title').innerText = "GAME OVER";
-        document.getElementById('go-msg').innerText = "You reached Level " + currentLevel + "\nTotal Score: " + window.totalScore;
-        document.getElementById('submit-form').style.display = 'block';
-        document.getElementById('leaderboard-display').style.display = 'none';
-        const btn = document.querySelector('#submit-form button');
-        btn.disabled = false; btn.innerText = "SUBMIT";
-        window.AudioCtx.die();
-    }
-
-    // --- CONTROLS ---
+    // CONTROLS
     const keys = {};
-    window.addEventListener('keydown', (e) => {
-        if (e.code === 'Space') {
-            window.handleAction(); keys[e.code] = true;
-        } else { keys[e.code] = true; }
-    });
+    window.addEventListener('keydown', (e) => { if (e.code === 'Space') { window.handleAction(); keys[e.code] = true; } else { keys[e.code] = true; } });
     window.addEventListener('keyup', (e) => keys[e.code] = false);
 
-    const joystick = { active: false, originX: 0, originY: 0 };
-    const knob = document.getElementById('joystick-knob');
-    const zone = document.getElementById('joystick-zone');
-
-    zone.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        const touch = e.changedTouches[0];
-        joystick.active = true;
-        joystick.originX = touch.clientX; joystick.originY = touch.clientY;
-        joystick.id = touch.identifier;
-        updateJoystickVisuals(touch.clientX, touch.clientY);
-    }, {passive: false});
-
-    zone.addEventListener('touchmove', (e) => {
-        e.preventDefault();
-        if (!joystick.active) return;
-        for (let i=0; i<e.changedTouches.length; i++) {
-            if (e.changedTouches[i].identifier === joystick.id) {
-                updateJoystickVisuals(e.changedTouches[i].clientX, e.changedTouches[i].clientY);
-                break;
-            }
-        }
-    }, {passive: false});
-
-    zone.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        joystick.active = false;
-        knob.style.transform = `translate(-50%, -50%)`;
-        keys['KeyW'] = false; keys['KeyS'] = false; keys['KeyA'] = false; keys['KeyD'] = false;
-    }, {passive: false});
-
-    function updateJoystickVisuals(clientX, clientY) {
-        const maxDist = 40; 
-        let dx = clientX - joystick.originX;
-        let dy = clientY - joystick.originY;
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        if (dist > maxDist) { const ratio = maxDist / dist; dx *= ratio; dy *= ratio; }
-        knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-        const threshold = 10;
-        keys['KeyW'] = dy < -threshold; keys['KeyS'] = dy > threshold;
-        keys['KeyA'] = dx < -threshold; keys['KeyD'] = dx > threshold;
+    // D-PAD BINDINGS
+    function bindDpad(id, key) {
+        const btn = document.getElementById(id);
+        btn.addEventListener('touchstart', (e) => { e.preventDefault(); keys[key] = true; }, {passive: false});
+        btn.addEventListener('touchend', (e) => { e.preventDefault(); keys[key] = false; }, {passive: false});
+        btn.addEventListener('mousedown', (e) => { e.preventDefault(); keys[key] = true; }); // Test on desktop
+        btn.addEventListener('mouseup', (e) => { e.preventDefault(); keys[key] = false; });
     }
+    bindDpad('btn-up', 'KeyW'); bindDpad('btn-down', 'KeyS'); bindDpad('btn-left', 'KeyA'); bindDpad('btn-right', 'KeyD');
 
     const jumpBtn = document.getElementById('mobile-jump');
-    jumpBtn.addEventListener('touchstart', (e) => {
-        e.preventDefault(); window.handleAction(); keys['Space'] = true;
-    }, {passive: false});
-    jumpBtn.addEventListener('touchend', (e) => {
-        e.preventDefault(); keys['Space'] = false;
-    }, {passive: false});
+    jumpBtn.addEventListener('touchstart', (e) => { e.preventDefault(); window.handleAction(); keys['Space'] = true; }, {passive: false});
+    jumpBtn.addEventListener('touchend', (e) => { e.preventDefault(); keys['Space'] = false; }, {passive: false});
+    jumpBtn.addEventListener('mousedown', (e) => { e.preventDefault(); window.handleAction(); keys['Space'] = true; });
+    jumpBtn.addEventListener('mouseup', (e) => { e.preventDefault(); keys['Space'] = false; });
 
-    // --- LOOP ---
     const smoothedForward = new THREE.Vector3(0, 0, 1);
     const tempQuat = new THREE.Quaternion();
 
@@ -658,7 +496,6 @@
 
         const now = Date.now();
         const isPowered = now < powerUpEndTime;
-        
         if (isPowered) {
             const timeLeft = powerUpEndTime - now;
             const pct = (timeLeft / CFG.powerDuration) * 100;
@@ -671,11 +508,23 @@
             mat.enemy.color.setHex(CFG.colors.enemyNormal);
         }
 
-        if (keys['Space'] && playerHeight <= 0.05) { playerVerticalSpeed = CFG.jumpForce; window.AudioCtx.jump(); }
-        playerHeight += playerVerticalSpeed; playerVerticalSpeed -= CFG.gravity;
-        if (playerHeight < 0) { playerHeight = 0; playerVerticalSpeed = 0; }
+        // PHYSICS with PLATFORMING
+        if (keys['Space'] && playerHeight <= groundLevel + 0.1) { 
+            playerVerticalSpeed = CFG.jumpForce; 
+            window.AudioCtx.jump(); 
+        }
+        playerHeight += playerVerticalSpeed; 
+        playerVerticalSpeed -= CFG.gravity;
+        
+        // Floor check happens after move logic to determine "Ground Level"
+        // For now, default floor is 0
+        if (playerHeight < groundLevel) { 
+            playerHeight = groundLevel; 
+            playerVerticalSpeed = 0; 
+        }
         playerMesh.position.y = 0.75 + playerHeight;
 
+        // MOVE
         let turn = 0;
         if (keys['KeyA'] || keys['ArrowLeft']) turn = 1;
         if (keys['KeyD'] || keys['ArrowRight']) turn = -1;
@@ -688,17 +537,50 @@
         if (move !== 0) {
             playerWrapper.translateZ(-move * CFG.moveSpeed);
             const newPos = playerWrapper.position.clone().normalize().multiplyScalar(CFG.planetRadius);
+            
             let hit = false;
+            let nextGroundLevel = 0;
+
             for(const obs of obstacles) {
                 if (newPos.distanceTo(obs.pos) < obs.radius) {
-                    if (playerHeight < obs.height) { hit = true; break; }
+                    if (obs.type === 'rock') {
+                        // Platforming Logic:
+                        // If we are currently ABOVE the rock (with tolerance), we land on it.
+                        // Otherwise we hit the side.
+                        if (playerHeight >= obs.height * 0.8) {
+                            nextGroundLevel = Math.max(nextGroundLevel, obs.height);
+                        } else {
+                            hit = true; 
+                        }
+                    } else {
+                        // Trees are solid
+                        hit = true;
+                    }
                 }
             }
+
             if (!hit) {
                 playerWrapper.position.copy(newPos);
+                groundLevel = nextGroundLevel; // Update floor based on where we walked
                 playerMesh.rotation.z = Math.sin(Date.now() * 0.02) * 0.1;
-            } else { playerWrapper.translateZ(move * CFG.moveSpeed); }
-        } else { playerMesh.rotation.z *= 0.8; }
+            } else {
+                playerWrapper.translateZ(move * CFG.moveSpeed); // Undo move
+            }
+        } else {
+            playerMesh.rotation.z *= 0.8;
+            // Check if we are still on a rock while standing still
+            // (Optimization: could skip this if not moving, but good for safety)
+            /* 
+               In a full engine we'd cast a ray down. 
+               Here we assume if not moving, ground stays same.
+               But if we jumped onto a rock and stopped, we need to know.
+               Simplified: groundLevel persists until next move attempt.
+            */
+        }
+        
+        // Fall off rock logic if groundLevel changed in move
+        if (playerHeight < groundLevel) { playerHeight = groundLevel; playerVerticalSpeed = 0; }
+
 
         const planetNormal = playerWrapper.position.clone().normalize(); 
         const currentUp = new THREE.Vector3(0, 1, 0).applyQuaternion(playerWrapper.quaternion);
@@ -720,7 +602,7 @@
             if (playerWrapper.position.distanceTo(p.group.position) < 2.0) {
                 p.active = false; p.group.visible = false;
                 powerUpEndTime = Date.now() + CFG.powerDuration;
-                window.AudioCtx.powerUp(); 
+                window.AudioCtx.powerUp(); trackEvent('power_up');
             }
         }
 
@@ -758,7 +640,14 @@
                     enemy.active = false; enemy.group.visible = false;
                     window.totalScore += 50; updateHUD(); window.AudioCtx.eatGhost();
                     setTimeout(() => { if(window.gameState !== "PLAYING") return; enemy.active = true; enemy.group.visible = true; enemy.group.position.copy(enemy.spawnPos); }, 4000);
-                } else { gameOver(); }
+                } else { 
+                    // JUMP OVER CHECK: If player is significantly higher than enemy (1.2 height), safe
+                    if(playerHeight > 1.2) {
+                        // Jumped over!
+                    } else {
+                        window.gameOver(); 
+                    }
+                }
             }
         }
 
