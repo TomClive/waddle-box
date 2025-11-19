@@ -5,40 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Waddle Box on Tiny Planet</title>
     <style>
-        /* PREVENT SCROLLING/ZOOMING ON MOBILE */
+        /* PREVENT SCROLLING/ZOOMING */
         body { margin: 0; overflow: hidden; background: #1a1a2e; font-family: 'Courier New', monospace; user-select: none; -webkit-user-select: none; touch-action: none; }
         
         /* HUD */
         #ui-layer {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 20px;
-            box-sizing: border-box;
-            z-index: 10;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: flex; flex-direction: column;
+            justify-content: space-between; padding: 20px; box-sizing: border-box; z-index: 10;
         }
 
         #top-bar {
-            display: flex;
-            justify-content: space-between;
-            width: 100%;
-            color: white;
-            font-size: 16px; /* Readable on mobile */
-            font-weight: bold;
-            text-shadow: 3px 3px 0 #000;
+            display: flex; justify-content: space-between; width: 100%;
+            color: white; font-size: 16px; font-weight: bold; text-shadow: 3px 3px 0 #000;
         }
 
-        .hud-item { background: rgba(0,0,0,0.4); padding: 8px 10px; border-radius: 8px; border: 2px solid #000; }
+        .hud-item { background: rgba(0,0,0,0.6); padding: 8px 12px; border-radius: 8px; border: 2px solid #000; box-shadow: 2px 2px 0 rgba(0,0,0,0.5); }
 
         /* POWER UP UI */
         #power-ui {
-            align-self: center;
-            text-align: center;
-            display: none;
-            margin-bottom: 60px; /* Moved up slightly to clear joystick */
+            align-self: center; text-align: center; display: none; margin-bottom: 60px;
         }
 
         #power-text {
@@ -48,88 +34,96 @@
 
         #power-bar-bg {
             width: 200px; height: 15px; background: rgba(0,0,0,0.5);
-            border: 2px solid white; border-radius: 10px; overflow: hidden; box-shadow: 4px 4px 0px black;
-            margin: 0 auto;
+            border: 2px solid white; border-radius: 10px; overflow: hidden; box-shadow: 4px 4px 0px black; margin: 0 auto;
         }
 
         #power-bar-fill { width: 100%; height: 100%; background: #00FFFF; transform-origin: left; }
         @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.1); } }
 
-        /* OVERLAYS & MODALS */
+        /* OVERLAYS (START / GAME OVER) */
         .overlay {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: white; border: 4px solid black; box-shadow: 10px 10px 0px black;
-            padding: 20px; text-align: center; pointer-events: auto; min-width: 280px; width: 80%;
+            padding: 30px; text-align: center; pointer-events: auto; 
+            
+            /* FIX: Cap width so it doesn't look huge on desktop */
+            width: 90%; max-width: 500px; 
+            border-radius: 4px;
             display: none; z-index: 100;
         }
 
         #transition-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); display: none; flex-direction: column;
+            background: rgba(0,0,0,0.85); display: none; flex-direction: column;
             justify-content: center; align-items: center; color: white; pointer-events: none;
-            backdrop-filter: blur(4px); z-index: 90;
+            backdrop-filter: blur(5px); z-index: 90;
         }
         
-        #trans-title { font-size: 40px; color: #FFD700; text-shadow: 4px 4px 0 #000; margin-bottom: 20px; font-weight: bold;}
+        #trans-title { font-size: 40px; color: #FFD700; text-shadow: 4px 4px 0 #000; margin-bottom: 20px; font-weight: bold; text-align: center;}
         #trans-msg { font-size: 18px; max-width: 600px; text-align: center; margin-bottom: 30px; line-height: 1.6; background: #000; padding: 20px; border: 2px solid white; border-radius: 10px;}
-        #countdown { font-size: 80px; font-weight: bold; text-shadow: 5px 5px 0 #000; color: #FFD700; }
+        #countdown { font-size: 100px; font-weight: bold; text-shadow: 5px 5px 0 #000; color: #FFD700; }
 
-        .blink { animation: blinker 1s linear infinite; color: #d32f2f; font-weight: bold; margin-top: 20px; font-size: 18px; }
-        @keyframes blinker { 50% { opacity: 0; } }
-
-        h1 { margin: 0 0 10px 0; text-transform: uppercase; font-size: 28px; }
+        h1 { margin: 0 0 10px 0; text-transform: uppercase; font-size: 36px; line-height: 1; text-shadow: 2px 2px 0 #ccc; }
         .win { color: #4CAF50; }
         .lose { color: #F44336; }
         
-        #music-note { position: absolute; bottom: 130px; right: 20px; color: white; opacity: 0.5; font-size: 12px; pointer-events: auto; cursor: pointer; z-index: 100; }
+        #music-note { position: absolute; bottom: 20px; right: 20px; color: white; opacity: 0.5; font-size: 12px; pointer-events: auto; cursor: pointer; z-index: 101; }
+
+        /* BUTTONS */
+        button.small-btn { background: #ddd; border: 2px solid black; font-family: inherit; font-weight: bold; cursor: pointer; padding: 8px 15px; box-shadow: 3px 3px 0px black; }
+        button.small-btn:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0px black; }
+
+        button.play-btn {
+            background: #FFD700; border: 3px solid black; font-family: inherit; font-size: 24px; font-weight: bold;
+            padding: 15px 40px; cursor: pointer; margin-top: 20px; box-shadow: 5px 5px 0px black;
+            display: inline-block;
+        }
+        button.play-btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0px black; }
 
         /* LEADERBOARD STYLES */
-        .lb-container { margin-top: 20px; max-height: 200px; overflow-y: auto; text-align: left; border: 2px solid #ddd; padding: 10px; font-size: 14px; }
+        .lb-container { margin-top: 10px; max-height: 250px; overflow-y: auto; text-align: left; border: 2px solid #ddd; padding: 10px; font-size: 14px; background: #f9f9f9; }
         .lb-row { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding: 5px 0; }
         .lb-name { font-weight: bold; }
         
         #input-row { display: flex; margin-top: 15px; justify-content: center; gap: 10px; flex-wrap: wrap; }
-        input { font-family: inherit; padding: 8px; border: 2px solid black; font-weight: bold; text-transform: uppercase; width: 140px;}
-        button.small-btn { background: #FFD700; border: 2px solid black; font-family: inherit; font-weight: bold; cursor: pointer; padding: 8px 15px; box-shadow: 2px 2px 0px black; }
-        button.small-btn:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0px black; }
+        input { font-family: inherit; padding: 10px; border: 2px solid black; font-weight: bold; text-transform: uppercase; width: 160px; font-size: 16px;}
 
         /* --- MOBILE CONTROLS --- */
         #mobile-controls {
             position: absolute; bottom: 20px; left: 0; width: 100%; height: 150px;
-            pointer-events: none; display: none; 
-            z-index: 50;
+            pointer-events: none; display: none; z-index: 50;
         }
         
-        /* FORCE SHOW ON MOBILE/TABLET */
+        /* Show on anything tablet sized or smaller */
         @media (max-width: 1024px) {
             #mobile-controls { display: block; }
-            #music-note { bottom: 150px; } /* Move music button up so it doesn't overlap jump */
+            #music-note { top: 80px; right: 20px; bottom: auto; } /* Move music button out of way */
+            h1 { font-size: 28px; }
         }
 
         /* Joystick Area */
         #joystick-zone {
-            position: absolute; bottom: 20px; left: 20px; width: 140px; height: 140px;
-            background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.3);
+            position: absolute; bottom: 30px; left: 30px; width: 120px; height: 120px;
+            background: rgba(255, 255, 255, 0.15); border: 2px solid rgba(255, 255, 255, 0.4);
             border-radius: 50%; pointer-events: auto; touch-action: none;
         }
         
         #joystick-knob {
-            position: absolute; top: 50%; left: 50%; width: 60px; height: 60px;
-            background: rgba(255, 215, 0, 0.5); border-radius: 50%;
-            transform: translate(-50%, -50%); border: 2px solid white;
-            pointer-events: none;
+            position: absolute; top: 50%; left: 50%; width: 50px; height: 50px;
+            background: rgba(255, 215, 0, 0.8); border-radius: 50%;
+            transform: translate(-50%, -50%); border: 2px solid white; pointer-events: none;
         }
 
         /* Jump Button */
         #mobile-jump {
-            position: absolute; bottom: 30px; right: 30px; width: 100px; height: 100px;
+            position: absolute; bottom: 40px; right: 40px; width: 90px; height: 90px;
             background: rgba(255, 255, 255, 0.2); border: 4px solid white;
             border-radius: 50%; pointer-events: auto; touch-action: none;
             display: flex; justify-content: center; align-items: center;
-            color: white; font-weight: bold; font-size: 20px; user-select: none;
-            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+            color: white; font-weight: bold; font-size: 18px; user-select: none;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.2);
         }
-        #mobile-jump:active { background: rgba(255, 215, 0, 0.6); transform: scale(0.95); border-color: #FFD700; }
+        #mobile-jump:active { background: rgba(255, 215, 0, 0.6); transform: scale(0.95); border-color: #FFD700; box-shadow: 0 2px 0 rgba(0,0,0,0.2); }
 
     </style>
     
@@ -179,10 +173,15 @@
 
 <!-- START SCREEN -->
 <div id="start-screen" class="overlay" style="display:block;">
-    <h1>Waddle Box<br><small style="font-size:16px">on Tiny Planet</small></h1>
-    <p>Arcade Edition</p>
-    <div class="blink">TAP SCREEN TO START</div>
-    <button class="small-btn" style="margin-top:15px" onclick="Leaderboard.show(false)">LEADERBOARD</button>
+    <h1>Waddle Box<br><small style="font-size:16px; color:#666;">on Tiny Planet</small></h1>
+    
+    <!-- MOBILE FIX: Explicit Button -->
+    <button class="play-btn" onclick="handleAction()">PLAY GAME</button>
+    
+    <div style="margin-top:20px">
+        <button class="small-btn" onclick="Leaderboard.show(false)">LEADERBOARD</button>
+    </div>
+    <small style="display:block; margin-top:15px; color:#aaa;">Rotate phone for best experience</small>
 </div>
 
 <!-- HIGH SCORE OVERLAY -->
@@ -210,7 +209,9 @@
         <div id="leaderboard-ui" class="lb-container">Loading...</div>
     </div>
 
-    <div class="blink" style="margin-top:30px">TAP SCREEN TO RESTART</div>
+    <div style="margin-top:30px">
+        <button class="play-btn" onclick="handleAction()">PLAY AGAIN</button>
+    </div>
 </div>
 
 <script type="importmap">
@@ -299,16 +300,28 @@
         isMuted = !isMuted; BGM.muted = isMuted;
         document.getElementById('music-note').innerText = "Music: " + (isMuted ? "OFF" : "ON");
     }
+
+    // GLOBALLY EXPOSE START FUNCTION FOR BUTTONS
+    window.handleAction = function() {
+        if (window.gameState === "WAITING") {
+            if(window.AudioCtx) window.AudioCtx.init();
+            BGM.play().catch(e=>console.log("Autoplay prevented"));
+            document.getElementById('start-screen').style.display = 'none';
+            window.totalScore = 0; window.startCountdown(1);
+        } else if (window.gameState === "LOST") {
+            document.getElementById('game-over').style.display = 'none';
+            window.totalScore = 0; window.startCountdown(1);
+        }
+    }
 </script>
 
 <script type="module">
     import * as THREE from 'three';
 
-    function trackEvent(eventName, params = {}) {
-        if(typeof gtag === 'function') gtag('event', eventName, params);
-    }
-
-    const AudioCtx = {
+    // EXPOSE STATE GLOBALLY FOR HTML BUTTONS
+    window.gameState = "WAITING"; 
+    window.totalScore = 0;
+    window.AudioCtx = {
         ctx: null,
         init: function() {
             if (this.ctx) return;
@@ -372,10 +385,8 @@
         camHeight: 25, camDistance: 35, camLag: 0.08
     };
 
-    let gameState = "WAITING"; 
     let currentLevel = 1;
     let levelScore = 0;
-    let totalScore = 0;
     let powerUpEndTime = 0;
     const upVector = new THREE.Vector3(0, 1, 0);
     let obstacles = [], coins = [], powerPills = [], enemies = [];   
@@ -449,7 +460,7 @@
     let playerVerticalSpeed = 0;
     let playerHeight = 0; 
 
-    // --- GENERATION & LOGIC ---
+    // --- HELPERS ---
     function getRandomPos(minDist) {
         const phi = Math.acos(-1 + (2 * Math.random()));
         const theta = Math.sqrt(Math.PI * 50 * phi) * phi;
@@ -467,7 +478,9 @@
     function spawnScenery(type) {
         const pos = getRandomPos(5);
         if (!pos) return false;
-        const group = new THREE.Group(); group.position.copy(pos); group.quaternion.setFromUnitVectors(upVector, pos.clone().normalize());
+        const group = new THREE.Group();
+        group.position.copy(pos);
+        group.quaternion.setFromUnitVectors(upVector, pos.clone().normalize());
         if(type === 'tree') {
             const trunkGeo = new THREE.CylinderGeometry(0.3, 0.5, 2, 6); trunkGeo.translate(0, 1, 0);
             const trunk = new THREE.Mesh(trunkGeo, mat.trunk); trunk.castShadow=true; trunk.receiveShadow=true; addOutline(trunk, trunkGeo); group.add(trunk);
@@ -516,7 +529,7 @@
 
     function updateHUD() {
         document.getElementById('score-level').innerText = levelScore;
-        document.getElementById('score-total').innerText = totalScore;
+        document.getElementById('score-total').innerText = window.totalScore;
         document.getElementById('level-num').innerText = currentLevel;
     }
 
@@ -534,12 +547,12 @@
         playerWrapper.quaternion.set(0,0,0,1);
         playerHeight = 0; playerVerticalSpeed = 0;
         window.currentLevel = lvl; 
-        trackEvent('level_start', { level: lvl });
     }
 
-    function startCountdown(nextLvl) {
-        gameState = "COUNTDOWN";
-        AudioCtx.levelUp();
+    // EXPORT START COUNTDOWN
+    window.startCountdown = function(nextLvl) {
+        window.gameState = "COUNTDOWN";
+        window.AudioCtx.levelUp();
         const screen = document.getElementById('transition-screen');
         const title = document.getElementById('trans-title');
         const msg = document.getElementById('trans-msg');
@@ -551,51 +564,49 @@
         } else {
             title.innerText = "LEVEL COMPLETE";
             msg.innerHTML = "Nice work! Prepare for Level " + nextLvl;
-            trackEvent('level_complete', { level: currentLevel, score: totalScore });
         }
         let count = 3; countUi.innerText = count;
         const interval = setInterval(() => {
             count--;
             if(count > 0) { countUi.innerText = count; } else {
                 clearInterval(interval); screen.style.display = 'none';
-                currentLevel = nextLvl; buildLevel(currentLevel); gameState = "PLAYING";
+                currentLevel = nextLvl; buildLevel(currentLevel); window.gameState = "PLAYING";
             }
         }, 1000);
     }
 
     function gameOver() {
-        gameState = "LOST";
-        window.finalTotalScore = totalScore; 
+        window.gameState = "LOST";
+        window.finalTotalScore = window.totalScore; 
         document.getElementById('game-over').style.display = 'block';
         document.getElementById('go-title').innerText = "GAME OVER";
-        document.getElementById('go-msg').innerText = "You reached Level " + currentLevel + "\nTotal Score: " + totalScore;
+        document.getElementById('go-msg').innerText = "You reached Level " + currentLevel + "\nTotal Score: " + window.totalScore;
         document.getElementById('submit-form').style.display = 'block';
         document.getElementById('leaderboard-display').style.display = 'none';
         const btn = document.querySelector('#submit-form button');
         btn.disabled = false; btn.innerText = "SUBMIT";
-        AudioCtx.die();
-        trackEvent('game_over', { level: currentLevel, score: totalScore });
+        window.AudioCtx.die();
     }
 
-    // --- INPUTS & MOBILE CONTROLS ---
+    // --- CONTROLS ---
     const keys = {};
     window.addEventListener('keydown', (e) => {
         if (e.code === 'Space') {
-            handleAction(); keys[e.code] = true;
+            window.handleAction(); keys[e.code] = true;
         } else { keys[e.code] = true; }
     });
     window.addEventListener('keyup', (e) => keys[e.code] = false);
 
     const joystick = { active: false, originX: 0, originY: 0 };
     const knob = document.getElementById('joystick-knob');
-    
     const zone = document.getElementById('joystick-zone');
+
     zone.addEventListener('touchstart', (e) => {
-        e.preventDefault(); // Prevent scroll
+        e.preventDefault();
         const touch = e.changedTouches[0];
         joystick.active = true;
         joystick.originX = touch.clientX; joystick.originY = touch.clientY;
-        joystick.id = touch.identifier; // Track specific finger
+        joystick.id = touch.identifier;
         updateJoystickVisuals(touch.clientX, touch.clientY);
     }, {passive: false});
 
@@ -624,7 +635,6 @@
         const dist = Math.sqrt(dx*dx + dy*dy);
         if (dist > maxDist) { const ratio = maxDist / dist; dx *= ratio; dy *= ratio; }
         knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-        
         const threshold = 10;
         keys['KeyW'] = dy < -threshold; keys['KeyS'] = dy > threshold;
         keys['KeyA'] = dx < -threshold; keys['KeyD'] = dx > threshold;
@@ -632,38 +642,19 @@
 
     const jumpBtn = document.getElementById('mobile-jump');
     jumpBtn.addEventListener('touchstart', (e) => {
-        e.preventDefault(); handleAction(); keys['Space'] = true;
+        e.preventDefault(); window.handleAction(); keys['Space'] = true;
     }, {passive: false});
     jumpBtn.addEventListener('touchend', (e) => {
         e.preventDefault(); keys['Space'] = false;
     }, {passive: false});
 
-    document.addEventListener('touchstart', (e) => {
-        // Global tap for menus
-        if(e.target.tagName !== 'BUTTON' && e.target.id !== 'mobile-jump' && e.target.id !== 'joystick-zone') {
-            if (gameState === "WAITING" || gameState === "LOST") handleAction();
-        }
-    }, {passive: false});
-
-    function handleAction() {
-        if (gameState === "WAITING") {
-            AudioCtx.init();
-            BGM.play().catch(e=>console.log("Autoplay prevented"));
-            document.getElementById('start-screen').style.display = 'none';
-            totalScore = 0; startCountdown(1);
-        } else if (gameState === "LOST") {
-            document.getElementById('game-over').style.display = 'none';
-            totalScore = 0; startCountdown(1);
-        }
-    }
-
-    // --- ANIMATION LOOP ---
+    // --- LOOP ---
     const smoothedForward = new THREE.Vector3(0, 0, 1);
     const tempQuat = new THREE.Quaternion();
 
     function animate() {
         requestAnimationFrame(animate);
-        if(gameState !== "PLAYING") return;
+        if(window.gameState !== "PLAYING") return;
 
         const now = Date.now();
         const isPowered = now < powerUpEndTime;
@@ -680,7 +671,7 @@
             mat.enemy.color.setHex(CFG.colors.enemyNormal);
         }
 
-        if (keys['Space'] && playerHeight <= 0.05) { playerVerticalSpeed = CFG.jumpForce; AudioCtx.jump(); }
+        if (keys['Space'] && playerHeight <= 0.05) { playerVerticalSpeed = CFG.jumpForce; window.AudioCtx.jump(); }
         playerHeight += playerVerticalSpeed; playerVerticalSpeed -= CFG.gravity;
         if (playerHeight < 0) { playerHeight = 0; playerVerticalSpeed = 0; }
         playerMesh.position.y = 0.75 + playerHeight;
@@ -719,8 +710,8 @@
             c.mesh.rotation.y += 0.05; c.mesh.position.y = 1.5 + Math.sin(Date.now() * 0.005) * 0.2;
             if (playerWrapper.position.distanceTo(c.group.position) < 2.0) {
                 c.active = false; c.group.visible = false;
-                levelScore++; totalScore += 10; updateHUD(); AudioCtx.coin();
-                if(levelScore >= CFG.totalCoins) startCountdown(currentLevel + 1);
+                levelScore++; window.totalScore += 10; updateHUD(); window.AudioCtx.coin();
+                if(levelScore >= CFG.totalCoins) window.startCountdown(currentLevel + 1);
             }
         }
         for(const p of powerPills) {
@@ -729,7 +720,7 @@
             if (playerWrapper.position.distanceTo(p.group.position) < 2.0) {
                 p.active = false; p.group.visible = false;
                 powerUpEndTime = Date.now() + CFG.powerDuration;
-                AudioCtx.powerUp(); trackEvent('power_up');
+                window.AudioCtx.powerUp(); 
             }
         }
 
@@ -765,8 +756,8 @@
             if (dist < 1.5) {
                 if(isPowered) {
                     enemy.active = false; enemy.group.visible = false;
-                    totalScore += 50; updateHUD(); AudioCtx.eatGhost();
-                    setTimeout(() => { if(gameState !== "PLAYING") return; enemy.active = true; enemy.group.visible = true; enemy.group.position.copy(enemy.spawnPos); }, 4000);
+                    window.totalScore += 50; updateHUD(); window.AudioCtx.eatGhost();
+                    setTimeout(() => { if(window.gameState !== "PLAYING") return; enemy.active = true; enemy.group.visible = true; enemy.group.position.copy(enemy.spawnPos); }, 4000);
                 } else { gameOver(); }
             }
         }
