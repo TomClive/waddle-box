@@ -259,9 +259,10 @@
         }
     }
 
+    // Start Game (Title Screen)
     window.handleAction = function() {
-        window.resetInputs(); // Force clear inputs
         if (window.gameState === "WAITING") {
+            window.resetInputs();
             if(window.AudioCtx) window.AudioCtx.init();
             BGM.play().catch(e=>console.log("Autoplay prevented"));
             document.getElementById('start-screen').style.display = 'none';
@@ -451,6 +452,7 @@
     }
 
     window.startCountdown = function(nextLvl) {
+        window.resetInputs(); // FIX STICKY MOVEMENT
         window.gameState = "COUNTDOWN";
         window.AudioCtx.levelUp();
         const screen = document.getElementById('transition-screen');
@@ -490,8 +492,13 @@
         trackEvent('game_over', { level: currentLevel, score: totalScore });
     }
 
-    // CONTROLS & TOUCH
-    window.keys = {}; // Export to window for reset func
+    // STOP INPUT PROPAGATION ON NAME FIELD
+    document.getElementById('player-name').addEventListener('keydown', (e) => {
+        e.stopPropagation();
+    });
+
+    // CONTROLS
+    window.keys = {};
     window.touchState = { left: false, right: false };
     let isMobile = false;
 
@@ -566,12 +573,11 @@
         let moveInput = 0;
 
         if (isMobile) {
-            moveInput = 1; // Always run
+            moveInput = 1; 
             if(window.touchState.left && window.touchState.right) jump = true;
             else if(window.touchState.left) turn = 1;
             else if(window.touchState.right) turn = -1;
         } else {
-            // Hybrid for Desktop
             if(window.keys['KeyW'] || window.keys['ArrowUp']) moveInput = 1;
             if(window.keys['KeyS'] || window.keys['ArrowDown']) moveInput = -1;
             if(window.keys['KeyA'] || window.keys['ArrowLeft']) turn = 1;
@@ -587,7 +593,10 @@
         playerVerticalSpeed -= CFG.gravity * dt;
         playerHeight += playerVerticalSpeed * dt;
         
-        if (playerHeight < groundLevel) { playerHeight = groundLevel; playerVerticalSpeed = 0; }
+        if (playerHeight < groundLevel) { 
+            playerHeight = groundLevel; 
+            playerVerticalSpeed = 0; 
+        }
         playerMesh.position.y = 0.75 + playerHeight;
 
         // 4. MOVE
@@ -602,7 +611,11 @@
             
             for(const obs of obstacles) {
                 if (newPos.distanceTo(obs.pos) < obs.radius) {
-                    if (playerHeight < obs.height) { hit = true; break; }
+                    if (obs.type === 'rock') {
+                        if (playerHeight >= obs.height * 0.8) {
+                            // Landed on rock
+                        } else { hit = true; }
+                    } else { hit = true; }
                 }
             }
 
@@ -616,13 +629,11 @@
             playerMesh.rotation.z *= 0.8;
         }
 
-        // 5. GRAVITY ALIGN
         const planetNormal = playerWrapper.position.clone().normalize(); 
         const currentUp = new THREE.Vector3(0, 1, 0).applyQuaternion(playerWrapper.quaternion);
         tempQuat.setFromUnitVectors(currentUp, planetNormal);
         playerWrapper.quaternion.premultiply(tempQuat);
 
-        // 6. COLLISIONS
         for(const c of coins) {
             if(!c.active) continue;
             c.mesh.rotation.y += 3.0 * dt;
