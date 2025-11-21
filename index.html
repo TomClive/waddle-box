@@ -123,8 +123,9 @@
 <div id="transition-screen">
     <div id="trans-title">GET READY</div>
     <div id="trans-msg">
+        Auto-Run Enabled!<br>
         1. Collect 20 Gold Coins.<br>
-        2. Avoid the Red Slimes (or jump over them!)<br>
+        2. Avoid Red Slimes (or jump over them!)<br>
         3. Eat Blue Pills to chase them back!
     </div>
     <div id="countdown">3</div>
@@ -244,7 +245,22 @@
         isMuted = !isMuted; BGM.muted = isMuted;
         document.getElementById('music-note').innerText = "Music: " + (isMuted ? "OFF" : "ON");
     }
+    
+    // RESET INPUTS (Fixes Sticky Movement)
+    window.resetInputs = function() {
+        if(window.keys) {
+            window.keys['KeyW'] = false; window.keys['KeyA'] = false;
+            window.keys['KeyS'] = false; window.keys['KeyD'] = false;
+            window.keys['Space'] = false;
+        }
+        if(window.touchState) {
+            window.touchState.left = false;
+            window.touchState.right = false;
+        }
+    }
+
     window.handleAction = function() {
+        window.resetInputs(); // Force clear inputs
         if (window.gameState === "WAITING") {
             if(window.AudioCtx) window.AudioCtx.init();
             BGM.play().catch(e=>console.log("Autoplay prevented"));
@@ -285,14 +301,13 @@
         die: function() { if(!this.ctx) return; const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain(); osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, this.ctx.currentTime); osc.frequency.exponentialRampToValueAtTime(10, this.ctx.currentTime + 0.5); gain.gain.value = 0.2; gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.5); osc.connect(gain); gain.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + 0.5); }
     };
 
-    // --- CONFIG ---
     const CFG = {
         colors: { bg: 0x1a1a2e, planet: 0x7Ec850, player: 0xFFD700, enemyNormal: 0xFF4444, enemyVuln: 0x4444FF, coin: 0xFFD700, powerPill: 0x00FFFF, tree: 0x2E7D32, trunk: 0x5D4037, rock: 0x757575, outline: 0x000000 },
         planetRadius: 30, 
         moveSpeed: 17.0, 
         turnSpeed: 3.5,  
-        jumpForce: 15.0, // Boosted for dt calculation
-        gravity: 40.0,   // Boosted for dt calculation
+        jumpForce: 15.0, 
+        gravity: 40.0,   
         baseEnemySpeed: 8.0, 
         totalCoins: 20, powerDuration: 6000, outlineThickness: 0.025,
         camHeight: 25, camDistance: 35, camLag: 0.08
@@ -456,7 +471,7 @@
             if(count > 0) { countUi.innerText = count; } else {
                 clearInterval(interval); screen.style.display = 'none';
                 currentLevel = nextLvl; buildLevel(currentLevel); window.gameState = "PLAYING";
-                clock.getDelta(); // Reset dt to avoid huge jump
+                clock.getDelta(); // Reset dt
             }
         }, 1000);
     }
@@ -475,27 +490,25 @@
         trackEvent('game_over', { level: currentLevel, score: totalScore });
     }
 
-    // CONTROLS
-    const keys = {};
+    // CONTROLS & TOUCH
+    window.keys = {}; // Export to window for reset func
+    window.touchState = { left: false, right: false };
     let isMobile = false;
 
-    window.addEventListener('keydown', (e) => { if (e.code === 'Space') { window.handleAction(); keys[e.code] = true; } else { keys[e.code] = true; } });
-    window.addEventListener('keyup', (e) => keys[e.code] = false);
+    window.addEventListener('keydown', (e) => { if (e.code === 'Space') { window.handleAction(); window.keys[e.code] = true; } else { window.keys[e.code] = true; } });
+    window.addEventListener('keyup', (e) => window.keys[e.code] = false);
 
-    // TOUCH
-    const touchState = { left: false, right: false };
-    
     document.addEventListener('touchstart', (e) => {
         if(e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
         if(window.gameState === "WAITING" || window.gameState === "LOST") { e.preventDefault(); window.handleAction(); return; }
         if(window.gameState !== "PLAYING") return;
 
         e.preventDefault();
-        isMobile = true; // Enable Auto-Run
+        isMobile = true;
         for(let i=0; i<e.changedTouches.length; i++) {
             const t = e.changedTouches[i];
-            if(t.clientX < window.innerWidth / 2) touchState.left = true;
-            else touchState.right = true;
+            if(t.clientX < window.innerWidth / 2) window.touchState.left = true;
+            else window.touchState.right = true;
         }
     }, {passive: false});
 
@@ -504,8 +517,8 @@
         e.preventDefault();
         for(let i=0; i<e.changedTouches.length; i++) {
             const t = e.changedTouches[i];
-            if(t.clientX < window.innerWidth / 2) touchState.left = false;
-            else touchState.right = false;
+            if(t.clientX < window.innerWidth / 2) window.touchState.left = false;
+            else window.touchState.right = false;
         }
     }, {passive: false});
 
@@ -533,18 +546,12 @@
             mat.enemy.color.setHex(CFG.colors.enemyNormal);
         }
 
-        // 1. DETERMINE GROUND LEVEL FIRST
-        // We need to know where the floor is *before* physics applies
-        // so we can jump/land correctly even if standing still.
+        // 1. DETERMINE GROUND
         let currentGroundLevel = 0;
         const playerPos = playerWrapper.position.clone();
-        
-        // Simple radius check for standing on rocks
-        // (Optimized: check close rocks only)
         for(const obs of obstacles) {
             if (obs.type === 'rock') {
                 if (playerPos.distanceTo(obs.pos) < obs.radius) {
-                    // Only "land" if we are above it or falling onto it
                     if (playerHeight >= obs.height * 0.8) {
                         currentGroundLevel = Math.max(currentGroundLevel, obs.height);
                     }
@@ -553,24 +560,23 @@
         }
         groundLevel = currentGroundLevel;
 
-        // 2. INPUTS (Hybrid)
+        // 2. INPUTS
         let turn = 0;
         let jump = false;
         let moveInput = 0;
 
         if (isMobile) {
-            // Auto-Run
-            moveInput = 1;
-            if(touchState.left && touchState.right) jump = true;
-            else if(touchState.left) turn = 1;
-            else if(touchState.right) turn = -1;
+            moveInput = 1; // Always run
+            if(window.touchState.left && window.touchState.right) jump = true;
+            else if(window.touchState.left) turn = 1;
+            else if(window.touchState.right) turn = -1;
         } else {
-            // Manual Run
-            if(keys['KeyW'] || keys['ArrowUp']) moveInput = 1;
-            if(keys['KeyS'] || keys['ArrowDown']) moveInput = -1;
-            if(keys['KeyA'] || keys['ArrowLeft']) turn = 1;
-            if(keys['KeyD'] || keys['ArrowRight']) turn = -1;
-            if(keys['Space']) jump = true;
+            // Hybrid for Desktop
+            if(window.keys['KeyW'] || window.keys['ArrowUp']) moveInput = 1;
+            if(window.keys['KeyS'] || window.keys['ArrowDown']) moveInput = -1;
+            if(window.keys['KeyA'] || window.keys['ArrowLeft']) turn = 1;
+            if(window.keys['KeyD'] || window.keys['ArrowRight']) turn = -1;
+            if(window.keys['Space']) jump = true;
         }
 
         // 3. PHYSICS
@@ -578,34 +584,25 @@
             playerVerticalSpeed = CFG.jumpForce; 
             window.AudioCtx.jump(); 
         }
-        
         playerVerticalSpeed -= CFG.gravity * dt;
         playerHeight += playerVerticalSpeed * dt;
         
-        if (playerHeight < groundLevel) { 
-            playerHeight = groundLevel; 
-            playerVerticalSpeed = 0; 
-        }
+        if (playerHeight < groundLevel) { playerHeight = groundLevel; playerVerticalSpeed = 0; }
         playerMesh.position.y = 0.75 + playerHeight;
 
-        // 4. APPLY MOVE
+        // 4. MOVE
         if (turn !== 0) playerWrapper.rotateY(turn * CFG.turnSpeed * dt);
 
         if (moveInput !== 0) {
             const dist = moveInput * CFG.moveSpeed * dt;
             playerWrapper.translateZ(-dist);
             
-            // Collision Check (Walls)
             const newPos = playerWrapper.position.clone().normalize().multiplyScalar(CFG.planetRadius);
             let hit = false;
             
             for(const obs of obstacles) {
                 if (newPos.distanceTo(obs.pos) < obs.radius) {
-                    // Hit if we are lower than the obstacle top
-                    if (playerHeight < obs.height) { 
-                        hit = true; 
-                        break; 
-                    }
+                    if (playerHeight < obs.height) { hit = true; break; }
                 }
             }
 
@@ -613,17 +610,19 @@
                 playerWrapper.position.copy(newPos);
                 playerMesh.rotation.z = Math.sin(clock.getElapsedTime() * 15) * 0.1;
             } else {
-                playerWrapper.translateZ(dist); // Undo move
+                playerWrapper.translateZ(dist); // Undo
             }
         } else {
             playerMesh.rotation.z *= 0.8;
         }
 
+        // 5. GRAVITY ALIGN
         const planetNormal = playerWrapper.position.clone().normalize(); 
         const currentUp = new THREE.Vector3(0, 1, 0).applyQuaternion(playerWrapper.quaternion);
         tempQuat.setFromUnitVectors(currentUp, planetNormal);
         playerWrapper.quaternion.premultiply(tempQuat);
 
+        // 6. COLLISIONS
         for(const c of coins) {
             if(!c.active) continue;
             c.mesh.rotation.y += 3.0 * dt;
@@ -665,8 +664,6 @@
 
             const enemyNormal = enemyPos.clone().normalize();
             const projectedDir = moveDir.sub(enemyNormal.multiplyScalar(moveDir.dot(enemyNormal))).normalize();
-            
-            // ENEMY SPEED SCALING
             const spd = (isPowered ? CFG.baseEnemySpeed * 0.6 : CFG.baseEnemySpeed) * dt;
             const nextPos = enemyPos.add(projectedDir.multiplyScalar(spd));
             nextPos.normalize().multiplyScalar(CFG.planetRadius);
@@ -681,7 +678,7 @@
                     window.totalScore += 50; updateHUD(); window.AudioCtx.eatGhost();
                     setTimeout(() => { if(window.gameState !== "PLAYING") return; enemy.active = true; enemy.group.visible = true; enemy.group.position.copy(enemy.spawnPos); }, 4000);
                 } else { 
-                    if(playerHeight > 1.2) { /* Jump over */ } else { window.gameOver(); }
+                    if(playerHeight > 1.2) { /* Safe */ } else { window.gameOver(); }
                 }
             }
         }
